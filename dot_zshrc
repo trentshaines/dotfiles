@@ -1,6 +1,8 @@
 # oh my zsh
 export ZSH="$HOME/.oh-my-zsh"
-ZSH_THEME="robbyrussell"
+ZSH_THEME="agnoster"
+export TERM="xterm-256color"
+export LS_COLORS="di=178:ln=180:so=181:pi=33:ex=31:bd=34;46:cd=34;43:su=30;41:sg=30;46:tw=30;42:ow=30;43"
 plugins=(git z)
 source $ZSH/oh-my-zsh.sh
 
