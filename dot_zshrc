@@ -30,3 +30,5 @@ source <(fzf --zsh)
 export EDITOR=nvim
 alias v=nvim
 
+# autojump script
+[ -f /home/linuxbrew/.linuxbrew/etc/profile.d/autojump.sh ] && . /home/linuxbrew/.linuxbrew/etc/profile.d/autojump.sh
