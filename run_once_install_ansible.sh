@@ -1,41 +1,20 @@
 #!/bin/bash
 
-install_on_fedora() {
-    sudo dnf install -y ansible
-}
-
-install_on_ubuntu() {
-    sudo apt-get update
-    sudo apt-get install -y ansible
-}
-
-install_on_mac() {
+# Ensure Ansible is installed
+if ! command -v ansible &> /dev/null
+then
+    echo "Ansible not found. Installing via Homebrew..."
+    if ! command -v brew &> /dev/null
+    then
+        echo "Homebrew not found. Installing Homebrew..."
+        /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+        eval "$(/opt/homebrew/bin/brew shellenv)"
+    fi
     brew install ansible
-}
+fi
 
-OS="$(uname -s)"
-case "${OS}" in
-    Linux*)
-        if [ -f /etc/fedora-release ]; then
-            install_on_fedora
-        elif [ -f /etc/lsb-release ]; then
-            install_on_ubuntu
-        else
-            echo "Unsupported Linux distribution"
-            exit 1
-        fi
-        ;;
-    Darwin*)
-        install_on_mac
-        ;;
-    *)
-        echo "Unsupported operating system: ${OS}"
-        exit 1
-        ;;
-esac
-
-
-ansible-playbook ~/.bootstrap/setup.yml --ask-become-pass
+# Run the Ansible playbook
+ansible-playbook ~/.local/share/chezmoi/ansible/playbooks/packages.yml
 
 echo "Ansible installation complete."
 
