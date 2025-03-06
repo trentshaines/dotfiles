@@ -215,6 +215,27 @@ prompt_hg() {
   fi
 }
 
+# Vim mode segment
+prompt_vim_mode() {
+  local NORMAL_MODE="NORMAL"
+  local INSERT_MODE="INSERT"
+  local MODE_INDICATOR="${${KEYMAP/vicmd/$NORMAL_MODE}/(main|viins)/$INSERT_MODE}"
+  
+  if [[ $KEYMAP == 'vicmd' ]]; then
+    prompt_segment yellow black $MODE_INDICATOR
+  else
+    prompt_segment green black $MODE_INDICATOR
+  fi
+}
+
+# Vim mode setup
+function _update_vim_mode_prompt() {
+  zle reset-prompt
+}
+
+zle -N zle-line-init _update_vim_mode_prompt
+zle -N zle-keymap-select _update_vim_mode_prompt
+
 # Dir: current working directory
 prompt_dir() {
   prompt_segment 147 $CURRENT_FG '%~'
@@ -265,6 +286,7 @@ build_prompt() {
   prompt_git
   prompt_bzr
   prompt_hg
+	prompt_vim_mode
   prompt_end
 }
 
