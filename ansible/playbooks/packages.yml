@@ -12,7 +12,10 @@
         /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
       when: brew_check.rc != 0
 
-    - name: Install autojump via Homebrew
-      community.general.homebrew:
-        name: autojump
+   - name: Install brew formulae
+      homebrew:
+        name:
+          - neovim
+          - fzf
+          - autojump
         state: present
