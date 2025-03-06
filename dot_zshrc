@@ -37,3 +37,10 @@ export PATH="/Applications/Rider.app/Contents/MacOS:$PATH"
 # autojump script
 [ -f $(brew --prefix)/etc/profile.d/autojump.sh ] && . $(brew --prefix)/etc/profile.d/autojump.sh
 
+# Load color support
+autoload -U colors && colors
+
+# Vi mode
+bindkey -v
+export KEYTIMEOUT=1
+
