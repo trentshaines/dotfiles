@@ -222,9 +222,9 @@ prompt_vim_mode() {
   local MODE_INDICATOR="${${KEYMAP/vicmd/$NORMAL_MODE}/(main|viins)/$INSERT_MODE}"
   
   if [[ $KEYMAP == 'vicmd' ]]; then
-    prompt_segment yellow black $MODE_INDICATOR
+    prompt_segment 189 black $MODE_INDICATOR
   else
-    prompt_segment green black $MODE_INDICATOR
+    prompt_segment 230 black $MODE_INDICATOR
   fi
 }
 
