@@ -58,9 +58,16 @@ if.app-id = 'com.tinyspeck.slackmacgap'
 run = 'move-node-to-workspace S' # mnemonics S - Slack
 
 [[on-window-detected]]
-if.app-id = 'com.thebrowsercompany.Arc'
+if.app-id = 'company.thebrowser.Browser'
 run = 'move-node-to-workspace A' # mnemonics A - Arc
 
+[[on-window-detected]]
+if.app-id = 'md.obsidian'
+run = 'move-node-to-workspace W'
+
+[[on-window-detected]]
+if.app-id = 'org.alacritty'
+run = 'move-node-to-workspace Q'
 
 [[on-window-detected]]
 if.app-name-regex-substring = 'finder'
