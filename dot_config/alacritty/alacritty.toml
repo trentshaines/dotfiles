@@ -1,0 +1,12 @@
+[window]
+padding.x = 10
+padding.y = 10
+
+[env]
+    TERM = "xterm-256color"
+
+# [font]
+#   [normal]
+#     font.family = 'Inconsolata Go'
+#   [size]
+#     size = 12.0
