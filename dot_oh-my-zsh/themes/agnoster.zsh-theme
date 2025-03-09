@@ -310,8 +310,10 @@ prompt_vim_mode() {
   
   if [[ $KEYMAP == 'vicmd' ]]; then
     prompt_segment 189 black $MODE_INDICATOR
+    echo -ne '\e[2 q'  # Block cursor for normal mode
   else
     prompt_segment 230 black $MODE_INDICATOR
+    echo -ne '\e[6 q'  # Vertical bar cursor for insert mode
   fi
 }
 
