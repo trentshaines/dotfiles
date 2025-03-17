@@ -6,6 +6,11 @@ export LS_COLORS="di=178:ln=180:so=181:pi=33:ex=31:bd=34;46:cd=34;43:su=30;41:sg
 plugins=(git z)
 source $ZSH/oh-my-zsh.sh
 
+
+# brew
+eval "$(/opt/homebrew/bin/brew shellenv)"
+
+
 # python
 PYTHONPATH="/Me/Documents/mydir:$PYTHONPATH"
 export PYTHONPATH
