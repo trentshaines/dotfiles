@@ -54,6 +54,78 @@ ff() {
     aerospace list-windows --all | fzf --bind 'enter:execute(bash -c "aerospace focus --window-id {1}")+abort'
 }
 
+# IDE Launchers
+alias ri='nohup rider . >/dev/null 2>&1 &'
+
+_fuzzy_select_project_dir() {
+    local selected_dir
+    # Don't echo scanning message here, let callers do it.
+    selected_dir=$( ( \
+                    find ~/git -maxdepth 1 -mindepth 1 -type d -print0; \
+                    find ~/git -mindepth 3 -maxdepth 3 -path '*/services/*' -type d -print0 \
+                  ) 2>/dev/null | \
+                 sort -zu | \
+                 fzf --read0 --prompt="Select Project/Service Dir > ")
+
+    # Output the selected directory path (will be empty if cancelled)
+    echo "$selected_dir"
+    # Return status based on whether fzf itself failed (rare) or succeeded/cancelled.
+    # For simplicity, always return 0 unless find/sort/fzf had a critical error.
+    return 0
+}
+
+# Rider Find
+rf() {
+    local selected_dir
+    local err_occurred=0
+
+    echo "Scanning for directories (~/git/*, ~/git/*/services/*) for Rider..."
+    selected_dir=$(_fuzzy_select_project_dir) # Capture output
+
+    if [[ -n "$selected_dir" ]]; then
+        if [[ -d "$selected_dir" ]]; then
+            echo "Opening '$selected_dir' with Rider..."
+            nohup rider "$selected_dir" >/dev/null 2>&1 &
+        else
+            echo "Error: '$selected_dir' is not a valid directory." >&2
+            err_occurred=1
+        fi
+    else
+        echo "No directory selected for Rider."
+        # No error needed for cancellation
+    fi
+    return "$err_occurred"
+}
+
+# Cursor Find
+cf() {
+    local selected_dir
+    local err_occurred=0
+
+    echo "Scanning for directories (~/git/*, ~/git/*/services/*) for Cursor..."
+    selected_dir=$(_fuzzy_select_project_dir) # Capture output
+
+    if [[ -n "$selected_dir" ]]; then
+        if [[ -d "$selected_dir" ]]; then
+            echo "Opening '$selected_dir' with Cursor..."
+            # Assuming 'cursor .' works, we need 'cursor path'
+            cursor "$selected_dir"
+            # Check exit status if desired
+            if [[ $? -ne 0 ]]; then
+                echo "Warning: 'cursor' exited with non-zero status." >&2
+            fi
+        else
+            echo "Error: '$selected_dir' is not a valid directory." >&2
+            err_occurred=1
+        fi
+    else
+        echo "No directory selected for Cursor."
+        # No error needed for cancellation
+    fi
+    return "$err_occurred"
+}
+
+
 # Git
 alias gc="git commit -m"
 alias gca="git commit -a -m"
@@ -70,7 +142,20 @@ alias ga='git add -p'
 alias gcoall='git checkout -- .'
 alias gr='git remote'
 alias gre='git reset'
+alias gsmp='git switch master && git pull'
 
-# Rider
-alias ri='nohup rider . >/dev/null 2>&1 &'
+gs() {
+  # 1. Get branches, let user select via fzf, clean the output
+  local selected_branch
+  selected_branch=$(git branch | fzf | tr -d '[:space:]*')
 
+  # 2. Check if a branch was actually selected (fzf cancelled?)
+  if [ -n "$selected_branch" ]; then
+    # 3. Switch to the selected branch
+    git switch "$selected_branch"
+  else
+    # Optional: Inform the user if they cancelled fzf
+    echo "No branch selected."
+    return 1 # Indicate failure
+  fi
+}
