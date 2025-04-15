@@ -61,11 +61,16 @@ _fuzzy_select_project_dir() {
     local selected_dir
     # Don't echo scanning message here, let callers do it.
     selected_dir=$( ( \
-                    find ~/git -maxdepth 1 -mindepth 1 -type d -print0; \
-                    find ~/git -mindepth 3 -maxdepth 3 -path '*/services/*' -type d -print0 \
-                  ) 2>/dev/null | \
-                 sort -zu | \
-                 fzf --read0 --prompt="Select Project/Service Dir > ")
+            # Find top-level project dirs in ~/git
+            find ~/git -maxdepth 1 -mindepth 1 -type d -print0; \
+            # Find service dirs like ~/git/project/services/service_name
+            find ~/git -mindepth 3 -maxdepth 3 -path '*/services/*' -type d -print0; \
+            # Find lib dirs like ~/git/project/libs/lib_name      <--- ADDED THIS LINE
+            find ~/git -mindepth 3 -maxdepth 3 -path '*/libs/*' -type d -print0 \
+        ) 2>/dev/null | \
+        sort -zu | \
+        # Updated prompt to include Libs
+        fzf --read0 --prompt="Select Project/Service/Lib Dir > ")
 
     # Output the selected directory path (will be empty if cancelled)
     echo "$selected_dir"
@@ -79,7 +84,8 @@ rf() {
     local selected_dir
     local err_occurred=0
 
-    echo "Scanning for directories (~/git/*, ~/git/*/services/*) for Rider..."
+    # Updated echo message
+    echo "Scanning for directories (~/git/*, ~/git/*/services/*, ~/git/*/libs/*) for Rider..."
     selected_dir=$(_fuzzy_select_project_dir) # Capture output
 
     if [[ -n "$selected_dir" ]]; then
@@ -102,7 +108,8 @@ cf() {
     local selected_dir
     local err_occurred=0
 
-    echo "Scanning for directories (~/git/*, ~/git/*/services/*) for Cursor..."
+    # Updated echo message
+    echo "Scanning for directories (~/git/*, ~/git/*/services/*, ~/git/*/libs/*) for Cursor..."
     selected_dir=$(_fuzzy_select_project_dir) # Capture output
 
     if [[ -n "$selected_dir" ]]; then
@@ -124,7 +131,6 @@ cf() {
     fi
     return "$err_occurred"
 }
-
 
 # Git
 alias gc="git commit -m"
@@ -159,3 +165,10 @@ gs() {
     return 1 # Indicate failure
   fi
 }
+
+
+# Roblox Swarp
+# alias slst3="swarp login sitetest3"
+# alias slst1="swarp login sitetest1"
+# alias srst3="swarp secrets refresh sitetest3"
+# alias srst1="swarp secrets refresh sitetest1"
