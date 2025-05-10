@@ -1,3 +1,4 @@
 " absolute + relative numbers set via relative line plugin
 nnoremap <C-j> :m .+1<CR>  " Move current line down
 nnoremap <C-k> :m .-1<CR>  " Move current line up
+set surround
