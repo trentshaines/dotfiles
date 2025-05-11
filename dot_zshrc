@@ -54,6 +54,10 @@ autoload -U colors && colors
 bindkey -v
 export KEYTIMEOUT=1
 
+autoload -U edit-command-line
+zle -N edit-command-line
+bindkey -M vicmd v edit-command-line
+
 # Telescope for aerospace
 ff() {
     aerospace list-windows --all | fzf --bind 'enter:execute(bash -c "aerospace focus --window-id {1}")+abort'
