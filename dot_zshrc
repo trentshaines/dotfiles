@@ -35,6 +35,11 @@ source <(fzf --zsh)
 export EDITOR=nvim
 alias v=nvim
 
+vf() {
+    local file
+    file=$(fzf) && nvim "$file"
+}
+
 # rider
 export PATH="/Applications/Rider.app/Contents/MacOS:$PATH"
 

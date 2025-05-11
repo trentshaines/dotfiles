@@ -40,7 +40,6 @@ key-mapping.preset = 'qwerty'
 # See https://nikitabobko.github.io/AeroSpace/commands#move-mouse
 on-focused-monitor-changed = ['move-mouse monitor-lazy-center']
 
-
 [workspace-to-monitor-force-assignment]
 1 = 'main'
 2 = 'main'
@@ -51,23 +50,54 @@ on-focused-monitor-changed = ['move-mouse monitor-lazy-center']
 7 = ['secondary','main']
 8 = ['secondary','main']
 9 = ['secondary','main']
-S = ['secondary', 'main'] # mnemonics S - Slack
+S = ['secondary', 'main']
 
+# Q: Termimal
 [[on-window-detected]]
-if.app-id = 'com.tinyspeck.slackmacgap'
-run = 'move-node-to-workspace S' # mnemonics S - Slack
+if.app-id = 'org.alacritty'
+run = 'move-node-to-workspace Q'
 
-[[on-window-detected]]
-if.app-id = 'company.thebrowser.Browser'
-run = 'move-node-to-workspace A' # mnemonics A - Arc
-
+# W: Writing
 [[on-window-detected]]
 if.app-id = 'md.obsidian'
 run = 'move-node-to-workspace W'
 
+# E: Claude
 [[on-window-detected]]
-if.app-id = 'org.alacritty'
+if.app-id = 'com.anthropic.claudefordesktop'
 run = 'move-node-to-workspace Q'
+
+
+# A: Browser
+[[on-window-detected]]
+if.app-id = 'company.thebrowser.Browser'
+run = 'move-node-to-workspace A'
+
+# S: Messaging
+[[on-window-detected]]
+if.app-id = 'com.tinyspeck.slackmacgap'
+run = 'move-node-to-workspace S'
+[[on-window-detected]]
+if.app-id = 'com.apple.mobileSMS'
+run = 'move-node-to-workspace S'
+[[on-window-detected]]
+if.app-id = 'com.hnc.Discord'
+run = 'move-node-to-workspace S' 
+
+# D: Database / Tooling
+[[on-window-detected]]
+if.app-id = 'com.jetbrains.Datagrip'
+run = 'move-node-to-workspace D' 
+[[on-window-detected]]
+if.app-id = 'com.docker.docker'
+run = 'move-node-to-workspace D' 
+[[on-window-detected]]
+if.app-id = 'com.azuredatastudio.oss'
+run = 'move-node-to-workspace D' 
+
+
+# todo: postman, consider limiting IDE or delineating IDE projects, etc.
+
 
 [[on-window-detected]]
 if.app-name-regex-substring = 'finder'
@@ -80,7 +110,6 @@ run = 'layout floating'
 [[on-window-detected]]
 if.app-name-regex-substring = 'activity monitor'
 run = 'layout floating'
-
 
 [gaps]
 inner.horizontal = 13
