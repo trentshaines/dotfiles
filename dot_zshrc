@@ -177,5 +177,5 @@ scratch() {
   local timestamp
   timestamp=$(date "+%Y-%m-%d_%H-%M-%S")
   local file=~/Documents/Scratch/"${label}_${timestamp}.txt"
-  vim "$file"
+  v "$file"
 }
