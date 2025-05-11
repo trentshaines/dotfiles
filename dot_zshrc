@@ -171,9 +171,11 @@ gs() {
   fi
 }
 
-
-# Roblox Swarp
-# alias slst3="swarp login sitetest3"
-# alias slst1="swarp login sitetest1"
-# alias srst3="swarp secrets refresh sitetest3"
-# alias srst1="swarp secrets refresh sitetest1"
+# Scratch files
+scratch() {
+  local label="${1:-scratch}"
+  local timestamp
+  timestamp=$(date "+%Y-%m-%d_%H-%M-%S")
+  local file=~/Documents/Scratch/"${label}_${timestamp}.txt"
+  vim "$file"
+}
