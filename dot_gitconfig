@@ -23,3 +23,5 @@
 	sync-master = !git fetch origin master && git merge origin/master
 [pull]
 	rebase = true
+[rerere]
+	enabled = true
