@@ -1,0 +1,25 @@
+[user]
+	name = Trent Haines
+	email = thaines@roblox.com
+[filter "lfs"]
+	required = true
+	clean = git-lfs clean -- %f
+	smudge = git-lfs smudge -- %f
+	process = git-lfs filter-process
+[push]
+	autoSetupRemote = true
+[diff]
+	tool = nvimdiff
+[difftool "nvimdiff"]
+	cmd = nvim -d \"$LOCAL\" \"$REMOTE\"
+[core]
+	autocrlf = input
+[credential "https://dev.azure.com"]
+	useHttpPath = true
+[credential "https://github.rbx.com"]
+	helper = 
+	helper = !/opt/homebrew/bin/gh auth git-credential
+[alias]
+	sync-master = !git fetch origin master && git merge origin/master
+[pull]
+	rebase = true
