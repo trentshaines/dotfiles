@@ -40,6 +40,11 @@ vf() {
     file=$(fzf) && nvim "$file"
 }
 
+# ctrl-x + e to edit the command in vim
+autoload -U edit-command-line
+zle -N edit-command-line
+bindkey '^v' edit-command-line
+
 # rider
 export PATH="/Applications/Rider.app/Contents/MacOS:$PATH"
 
@@ -143,7 +148,7 @@ cf() {
 
 # Git
 alias gc="git commit -m"
-alias gca="git commit -a -m"
+alias gca="git add . && git commit -a -m"
 alias gp="git push origin HEAD"
 alias gpu="git pull origin"
 alias gst="git status"
@@ -158,6 +163,8 @@ alias gcoall='git checkout -- .'
 alias gr='git remote'
 alias gre='git reset'
 alias gsmp='git rev-parse --verify --quiet master >/dev/null && git switch master && git pull || git switch main && git pull'
+alias ghpr='gh pr create -f --draft && gh pr view --web'
+alias ghprw='gh pr view --web'
 
 gs() {
   # 1. Get branches, let user select via fzf, clean the output
