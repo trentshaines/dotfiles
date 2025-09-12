@@ -3,7 +3,7 @@
 This repo contains the configuration to set up configuration and install programs. 
 This is using [Chezmoi](https://chezmoi.io), the dotfile manager to setup the install, as well as Ansible. 
 
-todo: set up ansible script for macos, also set up ideavim config
+TODO: set up all the relevant ansible package (or consider nixos)
 
 ## How to run
 
