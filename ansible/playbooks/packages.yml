@@ -1,4 +1,4 @@
-- name: Install Homebrew and autojump on macOS
+- name: Install Homebrew packages on macOS
   hosts: localhost
   become: no
   tasks:
@@ -12,10 +12,44 @@
         /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
       when: brew_check.rc != 0
 
-   - name: Install brew formulae
+    - name: Install brew formulae
       homebrew:
         name:
+          # Editor and development
           - neovim
+          - tmux
+          - git
+          - gh
+          - lazygit
+
+          # Search and navigation
           - fzf
-          - autojump
+          - ripgrep
+          - zoxide
+          - bat
+          - eza
+
+          # Python
+          - python@3.13
+          - poetry
+
+          # Node
+          - node
+          - nvm
+
+          # Database tools
+          - postgresql@17
+          - pgcli
+
+          # Utilities
+          - chezmoi
+          - htop
+          - tree-sitter
+
+        state: present
+
+    - name: Install brew casks
+      homebrew_cask:
+        name:
+          - aerospace
         state: present

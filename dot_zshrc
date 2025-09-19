@@ -51,6 +51,9 @@ bindkey -M vicmd v edit-command-line
 # socks
 alias proxyemr="ssh -N -D 18080 tick"
 
+# Telescope for URL bookmarks
+alias bf='fzf-bookmark-opener'
+
 # Telescope for aerospace
 ff() {
     aerospace list-windows --all | fzf --bind 'enter:execute(bash -c "aerospace focus --window-id {1}")+abort'
