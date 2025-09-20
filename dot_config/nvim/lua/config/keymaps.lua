@@ -14,3 +14,16 @@ for i = 1, 9 do
     require("bufferline").go_to(i, true)
   end, { desc = "Go to buffer " .. i })
 end
+
+-- Window resizing with C-w + hjkl (since C-hjkl is used for navigation)
+map("n", "<C-w>h", "<cmd>vertical resize -2<cr>", { desc = "Decrease window width" })
+map("n", "<C-w>j", "<cmd>resize -2<cr>", { desc = "Decrease window height" })
+map("n", "<C-w>k", "<cmd>resize +2<cr>", { desc = "Increase window height" })
+map("n", "<C-w>l", "<cmd>vertical resize +2<cr>", { desc = "Increase window width" })
+
+-- Large resize with C-w + Shift + HJKL
+map("n", "<C-w>H", "<cmd>vertical resize -10<cr>", { desc = "Decrease window width (large)" })
+map("n", "<C-w>J", "<cmd>resize -10<cr>", { desc = "Decrease window height (large)" })
+map("n", "<C-w>K", "<cmd>resize +10<cr>", { desc = "Increase window height (large)" })
+map("n", "<C-w>L", "<cmd>vertical resize +10<cr>", { desc = "Increase window width (large)" })
+
