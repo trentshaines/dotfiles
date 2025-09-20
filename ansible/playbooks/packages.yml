@@ -45,6 +45,7 @@
           - chezmoi
           - htop
           - tree-sitter
+          - joshmedeski/sesh/sesh
 
         state: present
 

@@ -34,13 +34,17 @@ alias tls="tmux ls"             # list sessions
 alias tk="tmux kill-session -t" # kill session
 t() {
   if [ -n "$1" ]; then
-    # If you pass a name, try to attach; if it doesn’t exist, create it
+    # If you pass a name, try to attach; if it doesn't exist, create it
     tmux attach -t "$1" 2>/dev/null || tmux new -s "$1"
   else
     # No name → just attach to the last used session, or create a default one
     tmux attach 2>/dev/null || tmux new -s default
   fi
 }
+
+# Sesh - modern tmux session manager
+alias sf='sesh connect "$(sesh list | fzf)"'
+alias sls='sesh list'      # sesh list sessions
 
 # Vi mode
 bindkey -v
