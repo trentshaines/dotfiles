@@ -45,6 +45,8 @@
           - chezmoi
           - htop
           - tree-sitter
+          - joshmedeski/sesh/sesh
+          - tmuxinator
 
         state: present
 

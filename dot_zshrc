@@ -43,7 +43,17 @@ t() {
 }
 
 # Sesh - modern tmux session manager
-alias sf='sesh connect "$(sesh list | fzf)"'
+sf() {
+  # Combine sesh list with "home" option at the top
+  local session=$(echo -e "home\n$(sesh list)" | fzf)
+  if [[ -n "$session" ]]; then
+    if tmux has-session -t "$session" 2>/dev/null; then
+      sesh connect "$session"
+    else
+      tmuxinator start default "$session"
+    fi
+  fi
+}
 alias sls='sesh list'      # sesh list sessions
 
 # Vi mode
@@ -160,6 +170,7 @@ alias gre='git reset'
 alias gsmp='git rev-parse --verify --quiet master >/dev/null && git switch master && git pull || git switch main && git pull'
 alias ghpr='gh pr create -f --draft && gh pr view --web'
 alias ghprw='gh pr view --web'
+alias ghprall='gca $(git branch --show-current) && git push && ghpr'
 
 gs() {
   # 1. Get branches, let user select via fzf, clean the output
@@ -198,3 +209,8 @@ export NVM_DIR="$HOME/.nvm"
   [ -s "/opt/homebrew/opt/nvm/etc/bash_completion.d/nvm" ] && \. "/opt/homebrew/opt/nvm/etc/bash_completion.d/nvm"
 [ -s "$NVM_DIR/bash_completion" ] && \. "$NVM_DIR/bash_completion"  # This loads nvm bash_completion
 nvm use 20 --silent 
+# Auto-create home tmux session
+if command -v tmux &> /dev/null && [ -z "$TMUX" ]; then
+  # Create a "home" session if it doesn't exist
+  tmux has-session -t home 2>/dev/null || tmux new-session -d -s home -c ~
+fi
