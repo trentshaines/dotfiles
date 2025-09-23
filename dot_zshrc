@@ -43,17 +43,18 @@ t() {
 }
 
 # Sesh - modern tmux session manager
-sf() {
-  # Combine sesh list with "home" option at the top
-  local session=$(echo -e "home\n$(sesh list)" | fzf)
-  if [[ -n "$session" ]]; then
-    if tmux has-session -t "$session" 2>/dev/null; then
-      sesh connect "$session"
-    else
-      tmuxinator start default "$session"
-    fi
-  fi
-}
+
+# sf() {
+#   # Combine sesh list with "home" option at the top
+#   local session=$(echo -e "home\n$(sesh list)" | fzf)
+#   if [[ -n "$session" ]]; then
+#     if tmux has-session -t "$session" 2>/dev/null; then
+#       sesh connect "$session"
+#     else
+#       tmuxinator start default "$session"
+#     fi
+#   fi
+# }
 alias sls='sesh list'      # sesh list sessions
 
 # Vi mode
@@ -170,22 +171,32 @@ alias gre='git reset'
 alias gsmp='git rev-parse --verify --quiet master >/dev/null && git switch master && git pull || git switch main && git pull'
 alias ghpr='gh pr create -f --draft && gh pr view --web'
 alias ghprw='gh pr view --web'
-alias ghprall='gca $(git branch --show-current) && git push && ghpr'
 
-gs() {
-  # 1. Get branches, let user select via fzf, clean the output
-  local selected_branch
-  selected_branch=$(git branch | fzf | tr -d '[:space:]*')
+# Commits, pushes, and creates/opens a GitHub PR from the current branch name.
+ghprall() {
+  # Get the current branch name.
+  local branch
+  branch=$(git branch --show-current)
 
-  # 2. Check if a branch was actually selected (fzf cancelled?)
-  if [ -n "$selected_branch" ]; then
-    # 3. Switch to the selected branch
-    git switch "$selected_branch"
-  else
-    # Optional: Inform the user if they cancelled fzf
-    echo "No branch selected."
-    return 1 # Indicate failure
+  # Check if we are on a branch. If not, show an error and stop.
+  if [[ -z "$branch" ]]; then
+    echo "❌ Error: Not a git repository or no branch is checked out."
+    return 1
   fi
+
+  # Parse the branch to create the commit message.
+  local ticket
+  ticket=$(echo "$branch" | sed -E "s/^([A-Z]+-[0-9]+).*/\1/")
+
+  local desc
+  desc=$(echo "$branch" | sed -E "s/^[A-Z]+-[0-9]+-//" | tr "-" " ")
+
+  local commit_message="$ticket: $desc"
+
+  # Execute the git commands, stopping if any command fails.
+  git commit -am "$commit_message" && \
+    git push && \
+    gh pr create --fill --web
 }
 
 # Scratch files
