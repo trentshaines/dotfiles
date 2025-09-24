@@ -12,6 +12,14 @@
         /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
       when: brew_check.rc != 0
 
+    - name: Add brew taps
+      homebrew_tap:
+        name:
+          - joshmedeski/sesh
+          - felixkratz/formulae
+          - kyu08/tap
+        state: present
+
     - name: Install brew formulae
       homebrew:
         name:
@@ -45,8 +53,10 @@
           - chezmoi
           - htop
           - tree-sitter
-          - joshmedeski/sesh/sesh
+          - sesh
           - tmuxinator
+          - borders
+          - fzf-bookmark-opener
 
         state: present
 

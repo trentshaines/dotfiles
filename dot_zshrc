@@ -42,20 +42,19 @@ t() {
   fi
 }
 
-# Sesh - modern tmux session manager
-
-# sf() {
-#   # Combine sesh list with "home" option at the top
-#   local session=$(echo -e "home\n$(sesh list)" | fzf)
-#   if [[ -n "$session" ]]; then
-#     if tmux has-session -t "$session" 2>/dev/null; then
-#       sesh connect "$session"
-#     else
-#       tmuxinator start default "$session"
-#     fi
-#   fi
-# }
-alias sls='sesh list'      # sesh list sessions
+# Sesh + Tmuxinator
+sf() {
+  # Combine sesh list with "home" option at the top
+  local session=$(echo -e "home\n$(sesh list)" | fzf)
+  if [[ -n "$session" ]]; then
+    if tmux has-session -t "$session" 2>/dev/null; then
+      sesh connect "$session"
+    else
+      tmuxinator start default "$session"
+    fi
+  fi
+}
+alias sls='sesh list' #sesh list sessions
 
 # Vi mode
 bindkey -v
@@ -173,6 +172,7 @@ alias ghpr='gh pr create -f --draft && gh pr view --web'
 alias ghprw='gh pr view --web'
 
 # Commits, pushes, and creates/opens a GitHub PR from the current branch name.
+# Specifically for JIRA ticket branch names.
 ghprall() {
   # Get the current branch name.
   local branch
