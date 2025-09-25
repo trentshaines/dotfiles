@@ -257,8 +257,32 @@ if command -v tmux &> /dev/null && [ -z "$TMUX" ]; then
 fi
 
 search() {
-  local query="${*:-TODO}"   # use "TODO" if no args given
-  rg --line-number --no-heading --color=always "$query" \
+  local file_globs=()
+  local terms=()
+
+  # parse args
+  for arg in "$@"; do
+    if [[ $arg == f:* ]]; then
+      local glob="${arg#f:}"
+      # if user didn't include '*' explicitly, wrap with *
+      if [[ $glob != *'*'* ]]; then
+        glob="*${glob}*"
+      fi
+      file_globs+=("$glob")
+    else
+      terms+=("$arg")
+    fi
+  done
+
+  local query="${terms[*]:-TODO}"
+
+  # build ripgrep command
+  local cmd=(rg --line-number --no-heading --color=always -S "$query")
+  for glob in "${file_globs[@]}"; do
+    cmd+=(-g "$glob")
+  done
+
+  "${cmd[@]}" \
     | fzf --ansi --delimiter : \
           --preview 'bat --style=numbers --color=always --highlight-line {2} {1}' \
           --bind 'enter:execute(nvim +{2} {1} < /dev/tty > /dev/tty 2>&1)'
