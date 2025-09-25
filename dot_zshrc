@@ -256,22 +256,35 @@ if command -v tmux &> /dev/null && [ -z "$TMUX" ]; then
   tmux has-session -t home 2>/dev/null || tmux new-session -d -s home -c ~
 fi
 
-search() {
+# Search through ripgrep, then filter with fzf after entering.
+# Usage: rgf [search terms] [-f pattern] [more terms]
+rgf() {
   local file_globs=()
   local terms=()
+  local args=("$@")
+  local i=1
 
-  # parse args
-  for arg in "$@"; do
-    if [[ $arg == f:* ]]; then
-      local glob="${arg#f:}"
-      # if user didn't include '*' explicitly, wrap with *
-      if [[ $glob != *'*'* ]]; then
-        glob="*${glob}*"
-      fi
-      file_globs+=("$glob")
-    else
-      terms+=("$arg")
-    fi
+  # parse args - flags can appear anywhere (zsh arrays are 1-indexed)
+  while [[ $i -le ${#args[@]} ]]; do
+    case "${args[$i]}" in
+      -f|--file)
+        ((i++))
+        if [[ $i -gt ${#args[@]} ]]; then
+          echo "Error: -f requires a file pattern"
+          return 1
+        fi
+        local glob="${args[$i]}"
+        # if user didn't include '*' explicitly, wrap with *
+        if [[ $glob != *'*'* ]]; then
+          glob="*${glob}*"
+        fi
+        file_globs+=("$glob")
+        ;;
+      *)
+        terms+=("${args[$i]}")
+        ;;
+    esac
+    ((i++))
   done
 
   local query="${terms[*]:-TODO}"
