@@ -164,7 +164,6 @@ alias gca="git add . && git commit -a -m"
 alias gp="git push origin HEAD"
 alias gpu="git pull origin"
 alias gst="git status"
-alias glog="git log --graph --topo-order --pretty='%w(100,0,6)%C(yellow)%h%C(bold)%C(black)%d %C(cyan)%ar %C(green)%an%n%C(bold)%C(white)%s %N' --abbrev-commit"
 alias gdiff="git diff"
 alias gco="git checkout"
 alias gb='git branch'
@@ -178,6 +177,16 @@ alias gre='git reset'
 alias gsmp='git rev-parse --verify --quiet master >/dev/null && git switch master && git pull || git switch main && git pull'
 alias ghpr='gh pr create -f --draft && gh pr view --web'
 alias ghprw='gh pr view --web'
+
+# git log
+glog() {
+  git log \
+    --graph \
+    --topo-order \
+    --pretty='%w(100,0,6)%C(yellow)%h%C(bold)%C(black)%d %C(cyan)%ar %C(green)%an%n%C(bold)%C(white)%s %N' \
+    --abbrev-commit \
+    "$@"
+}
 
 # Commits, pushes, and creates/opens a GitHub PR from the current branch name.
 # Specifically for JIRA ticket branch names.
@@ -207,20 +216,15 @@ ghprall() {
     gh pr create --fill --web
 }
 
+# switch branch fzf
+# todo: understand alias/function nesting failures
 gs() {
-  # 1. Get branches, let user select via fzf, clean the output
-  local selected_branch
-  selected_branch=$(git branch | fzf | tr -d '[:space:]*')
-
-  # 2. Check if a branch was actually selected (fzf cancelled?)
-  if [ -n "$selected_branch" ]; then
-    # 3. Switch to the selected branch
-    git switch "$selected_branch"
-  else
-    # Optional: Inform the user if they cancelled fzf
-    echo "No branch selected."
-    return 1 # Indicate failure
-  fi
+  git branch \
+    | fzf --preview 'git log --graph --topo-order \
+                        --pretty="%w(100,0,6)%C(yellow)%h%C(bold)%C(black)%d %C(cyan)%ar %C(green)%an%n%C(bold)%C(white)%s %N" \
+                        --abbrev-commit -n 20 $(echo {} | sed "s/^[* ] //")' \
+    | sed 's/^[* ] //' \
+    | xargs git switch
 }
 
 # Scratch files
@@ -252,13 +256,6 @@ if command -v tmux &> /dev/null && [ -z "$TMUX" ]; then
   tmux has-session -t home 2>/dev/null || tmux new-session -d -s home -c ~
 fi
 
-
-todo() {
-  rg --line-number --no-heading --color=always "TODO" \
-    | fzf --ansi --delimiter : \
-          --preview 'bat --style=numbers --color=always --highlight-line {2} {1}'
-}
-
 search() {
   local query="${*:-TODO}"   # use "TODO" if no args given
   rg --line-number --no-heading --color=always "$query" \
@@ -267,3 +264,4 @@ search() {
           --bind 'enter:execute(nvim +{2} {1} < /dev/tty > /dev/tty 2>&1)'
 }
 
+alias fkill='ps -ax | fzf | awk '{print $1}' | xargs kill'
