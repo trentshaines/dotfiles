@@ -22,6 +22,13 @@ source <(fzf --zsh)
 export PATH="$HOME/.local/bin:$PATH"
 export EDITOR=nvim
 alias v=nvim
+
+# Better defaults with modern tools
+alias cat='bat'
+alias ls='eza'
+alias ll='eza -l'
+alias la='eza -la'
+alias tree='eza --tree'
 vf() {
     local file
     file=$(fzf) && nvim "$file"
@@ -228,6 +235,8 @@ scratch() {
 ## Languages
 
 # python
+alias python='python3'
+alias pip='pip3'
 alias cvenv='python3 -m venv .venv'
 alias svenv='source .venv/bin/activate'
 
