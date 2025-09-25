@@ -289,3 +289,56 @@ search() {
 }
 
 alias fkill='ps -ax | fzf | awk '{print $1}' | xargs kill'
+
+# Interactive git stash manager with preview
+gstash() {
+  local stash
+  stash=$(git stash list --format="%C(yellow)%gd%C(reset) - %C(cyan)%cr%C(reset) - %s" \
+    | fzf --ansi --no-sort --reverse --preview 'git stash show -p --color=always $(echo {} | cut -d" " -f1)' \
+          --preview-window=right:60% \
+          --bind 'ctrl-d:execute(git stash drop $(echo {} | cut -d" " -f1))+reload(git stash list --format="%C(yellow)%gd%C(reset) - %C(cyan)%cr%C(reset) - %s")' \
+          --bind 'ctrl-p:execute(git stash pop $(echo {} | cut -d" " -f1))' \
+          --header 'Enter: apply | Ctrl-p: pop | Ctrl-d: drop' \
+    | cut -d" " -f1)
+
+  [[ -n "$stash" ]] && git stash apply "$stash"
+}
+
+# Interactive JSON explorer with jq
+jqe() {
+  local file="${1:-}"
+  if [[ -z "$file" ]]; then
+    echo "Usage: jqe <json-file>"
+    return 1
+  fi
+
+  echo '' | fzf --print-query --preview "jq -C {q} \"$file\"" \
+    --preview-window=up:90% \
+    --header 'Enter JQ query (start with . for root)' \
+    --query '.' \
+    --bind 'enter:execute(jq -C {q} '"$file"' | less -R)'
+}
+
+# Browse JSON structure interactively
+jqb() {
+  local file="${1:-}"
+  if [[ -z "$file" ]]; then
+    echo "Usage: jqb <json-file>"
+    return 1
+  fi
+
+  # Get all paths in the JSON
+  local selected
+  selected=$(jq -r 'paths(scalars) as $p | "\($p | join(".")): \(getpath($p))"' "$file" \
+    | fzf --preview "jq -C '.{}' \"$file\" 2>/dev/null || jq -C '.' \"$file\" | head -20" \
+          --preview-window=right:60% \
+          --bind 'enter:execute(echo {} | cut -d: -f1 | xargs -I@ jq -C ".@" '"$file"' | less -R)')
+}
+
+vaultf() {
+  local keyfile="$HOME/.apikeys"
+  cat "$keyfile" \
+    | fzf --delimiter '=' --with-nth=1 \
+          --preview 'echo {2}' \
+          --bind 'enter:execute-silent(echo -n {2} | pbcopy)+abort'
+}
