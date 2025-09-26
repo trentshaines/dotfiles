@@ -58,6 +58,12 @@
           - borders
           - fzf-bookmark-opener
 
+          # Security
+          - gnupg
+          - pass
+          - pass-otp
+          - pinentry-mac
+
         state: present
 
     - name: Install brew casks

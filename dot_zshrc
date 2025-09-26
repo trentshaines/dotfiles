@@ -348,14 +348,38 @@ jqb() {
           --bind 'enter:execute(echo {} | cut -d: -f1 | xargs -I@ jq -C ".@" '"$file"' | less -R)')
 }
 
-vaultf() {
-  local keyfile="$HOME/.apikeys"
-  # 1. Use `cut` to pass only the keys to fzf for selection.
+pastebin() {
+  local keyfile="$HOME/.pastebin"
   cut -d'=' -f1 "$keyfile" \
     | fzf --preview "grep '^{}=' '$keyfile' | cut -d'=' -f2-" \
           --bind "enter:execute-silent(echo -n \$(grep '^{}=' '$keyfile' | cut -d'=' -f2-) | pbcopy)+abort"
 }
 
-# TODO:: bwjq 
-#TODO:: pass for apikeys local to each pc
+#TODO:: gpg multi key
+# pass find
+pf() {
+  local password
+  password=$(find ~/.password-store -name "*.gpg" -type f \
+    | sed 's|^.*\.password-store/||' \
+    | sed 's|\.gpg$||' \
+    | fzf --preview 'pass show {} 2>/dev/null' \
+          --preview-window=right:40% \
+          --header 'Enter: copy | Ctrl-o: show | Ctrl-e: edit')
 
+  [[ -n "$password" ]] && pass -c "$password"
+}
+
+# Pass OTP 2fa with fzf
+otp() {
+  local otp
+  otp=$(find ~/.password-store -name "*.gpg" -type f \
+    | sed 's|^.*\.password-store/||' \
+    | sed 's|\.gpg$||' \
+    | fzf --header 'Select OTP to copy')
+
+  [[ -n "$otp" ]] && pass otp -c "$otp"
+}
+
+#TODO:: bwjq 
+
+export PASSWORD_STORE_ENABLE_EXTENSIONS=true
