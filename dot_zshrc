@@ -350,8 +350,12 @@ jqb() {
 
 vaultf() {
   local keyfile="$HOME/.apikeys"
-  cat "$keyfile" \
-    | fzf --delimiter '=' --with-nth=1 \
-          --preview 'echo {2}' \
-          --bind 'enter:execute-silent(echo -n {2} | pbcopy)+abort'
+  # 1. Use `cut` to pass only the keys to fzf for selection.
+  cut -d'=' -f1 "$keyfile" \
+    | fzf --preview "grep '^{}=' '$keyfile' | cut -d'=' -f2-" \
+          --bind "enter:execute-silent(echo -n \$(grep '^{}=' '$keyfile' | cut -d'=' -f2-) | pbcopy)+abort"
 }
+
+# TODO:: bwjq 
+#TODO:: pass for apikeys local to each pc
+
