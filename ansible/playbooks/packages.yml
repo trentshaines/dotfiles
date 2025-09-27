@@ -57,6 +57,9 @@
           - tmuxinator
           - borders
           - fzf-bookmark-opener
+          - jq
+          - tree
+          - coreutils
 
           # Security
           - gnupg
