@@ -1,0 +1,12 @@
+name: <%= File.basename(File.expand_path(@args[0] || '.')) %>
+root: <%= @args[0] || '.' %>
+
+on_project_start: tmux resize-pane -t main:0.0 -y 70%
+
+windows:
+  - main:
+      panes:
+        - nvim
+        - # empty terminal
+        - claude --resume
+      layout: main-horizontal
