@@ -386,3 +386,6 @@ export PASSWORD_STORE_ENABLE_EXTENSIONS=true
 
 alias cadd='chezmoi re-add'
 alias capply='chezmoi apply'
+
+alias fcopy='pbcopy < "$(fzf)"'
+
