@@ -63,6 +63,15 @@ sf() {
 }
 alias sls='sesh list' #sesh list sessions
 
+alias tcopy='tmux save-buffer - | pbcopy'
+tlines(){
+  local n=${1:-10}
+  tmux capture-pane -p \
+    | tail -n "$((n + 2))" \
+    | head -n "$n" \
+    | pbcopy
+}
+
 # Vi mode
 bindkey -v
 export KEYTIMEOUT=1
