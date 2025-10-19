@@ -1,3 +1,6 @@
+" Unmap Space first so it can be used in mappings
+unmap <Space>
+
 " Navigate to link under cursor
 exmap followlink obcommand editor:follow-link
 nmap gd :followlink<cr>
@@ -15,6 +18,13 @@ nmap <C-i> :forward<cr>
 " Open symbols in current file (Quick Switcher++)
 exmap symbols obcommand darlal-switcher-plus:switcher-plus:open-symbols
 nmap gs :symbols<cr>
+
+
+
+" Then use Space directly in your mappings
+exmap completeTask obcommand editor:toggle-checklist-status
+nmap <Space>. mz:completeTask<CR>ddGp`z
+
 
 " Common vim settings
 set clipboard=unnamed
