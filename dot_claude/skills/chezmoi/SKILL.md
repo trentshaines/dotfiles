@@ -46,13 +46,26 @@ cadd      # chezmoi re-add (sync changes back to source)
 capply    # chezmoi apply (apply changes from source to home)
 ```
 
+### CRITICAL: `add` vs `re-add`
+
+**This is the most important distinction:**
+
+- `chezmoi add <file>` - Add a NEW file that's NOT YET managed by chezmoi
+- `chezmoi re-add <file>` - Update an EXISTING file that's ALREADY managed
+
+**How to know which to use:**
+```bash
+chezmoi managed | grep filename   # If it shows up → use re-add
+                                  # If it doesn't → use add
+```
+
 ### Essential Chezmoi Commands
 
 ```bash
 # Sync changes FROM home TO chezmoi source
-chezmoi re-add                    # Re-add all managed files
-chezmoi re-add ~/.zshrc           # Re-add specific file
-chezmoi re-add ~/.config/tmuxinator/admin.yml  # Re-add specific config
+chezmoi add ~/.new-file           # Add NEW file (first time)
+chezmoi re-add ~/.zshrc           # Re-add EXISTING managed file
+chezmoi re-add ~/.config/tmuxinator/admin.yml  # Re-add EXISTING config
 
 # Apply changes FROM chezmoi source TO home
 chezmoi apply                     # Apply all changes
@@ -61,6 +74,7 @@ chezmoi apply ~/.zshrc            # Apply specific file
 # View changes
 chezmoi diff                      # See what would change
 chezmoi status                    # See modified files
+chezmoi managed                   # List all managed files
 
 # Git operations (in chezmoi source)
 chezmoi cd                        # cd to source directory
@@ -69,24 +83,54 @@ chezmoi git -- add .              # Git add
 chezmoi git -- commit -m "msg"    # Git commit
 chezmoi git -- push               # Git push
 exit                              # Exit chezmoi source directory
-
-# Or use this workflow:
-cd ~/.local/share/chezmoi         # Go to source
-git status                        # Check changes
-git add .                         # Stage changes
-git commit -m "Update configs"    # Commit
-git push                          # Push to GitHub
-cd -                              # Return to previous directory
 ```
+
+## Claude's Recommended Workflow (SIMPLE & FOOLPROOF)
+
+**When you modify or create config files, use this workflow:**
+
+```bash
+# Step 1: Add/re-add the files (use 'add' for new, 're-add' for existing)
+chezmoi add ~/.path/to/new-file        # if NEW
+chezmoi re-add ~/.path/to/existing-file  # if MODIFIED
+
+# Step 2: Work directly in the chezmoi source directory
+cd ~/.local/share/chezmoi
+
+# Step 3: Use git commands directly
+git add .                              # Stage everything
+git status                             # Review what's changed
+git commit -m "Descriptive message"    # Commit
+git push                               # Push to GitHub
+
+# Step 4: Return to previous directory
+cd -
+```
+
+**Even simpler alternative (when unsure):**
+```bash
+# Just work directly in the chezmoi source!
+cd ~/.local/share/chezmoi
+git add .
+git status    # See what changed
+git commit -m "Update configs"
+git push
+cd -
+```
+
+This avoids confusion about add vs re-add since git will show you exactly what changed.
 
 ## Typical Workflow After Config Changes
 
 When Claude (or the user) modifies a config file like `~/.zshrc`, `~/.config/tmuxinator/admin.yml`, or any other managed file:
 
-### Step 1: Re-add the changed file
+### Step 1: Sync the file to chezmoi source
 ```bash
+# For NEW files (not yet managed):
+chezmoi add ~/.config/tmuxinator/config.yml
+
+# For EXISTING managed files:
 chezmoi re-add ~/.zshrc
-# or for files in .config:
 chezmoi re-add ~/.config/tmuxinator/admin.yml
 ```
 
@@ -149,37 +193,70 @@ chezmoi managed | grep tmux       # Find tmux-related managed files
 
 ## Common Scenarios
 
-### 1. Modified a dotfile (e.g., .zshrc)
+### 1. Modified an existing dotfile (e.g., .zshrc)
 ```bash
-chezmoi re-add ~/.zshrc
-cd ~/.local/share/chezmoi
-git add dot_zshrc
-git commit -m "Update zshrc: describe changes"
-git push
-```
-
-### 2. Added new tmuxinator template
-```bash
-chezmoi re-add ~/.config/tmuxinator/
-cd ~/.local/share/chezmoi
-git add dot_config/tmuxinator/
-git commit -m "Add new tmuxinator template"
-git push
-```
-
-### 3. Modified multiple config files
-```bash
-chezmoi re-add  # Re-add all changed files
+chezmoi re-add ~/.zshrc           # Re-add existing managed file
 cd ~/.local/share/chezmoi
 git add .
-git status  # Review all changes
-git commit -m "Update multiple configs"
+git commit -m "Update zshrc: describe changes"
 git push
+cd -
 ```
 
-### 4. Want to see what changed
+### 2. Created NEW tmuxinator template
 ```bash
-chezmoi diff
+chezmoi add ~/.config/tmuxinator/newtemplate.yml  # ADD, not re-add!
+cd ~/.local/share/chezmoi
+git add .
+git commit -m "Add new tmuxinator template: newtemplate"
+git push
+cd -
+```
+
+### 3. Created NEW Claude skill
+```bash
+chezmoi add ~/.claude/skills/my-skill/   # ADD new skill directory
+cd ~/.local/share/chezmoi
+git add .
+git status                                # Verify the new files
+git commit -m "Add my-skill Claude skill"
+git push
+cd -
+```
+
+### 4. Modified multiple existing config files
+```bash
+chezmoi re-add                    # Re-add all changed managed files
+cd ~/.local/share/chezmoi
+git add .
+git status                        # Review all changes
+git commit -m "Update multiple configs"
+git push
+cd -
+```
+
+### 5. Mixed: new files + modified files (EASIEST)
+```bash
+# Add new files individually
+chezmoi add ~/.config/newfile.yml
+chezmoi add ~/.claude/skills/newskill/
+
+# Re-add modified files
+chezmoi re-add ~/.zshrc
+
+# Then commit everything
+cd ~/.local/share/chezmoi
+git add .
+git status  # Review everything
+git commit -m "Add new configs and update existing ones"
+git push
+cd -
+```
+
+### 6. Want to see what changed
+```bash
+chezmoi diff                      # See what would change
+cd ~/.local/share/chezmoi && git status  # See what's uncommitted
 ```
 
 ## Files NOT Managed by Chezmoi
