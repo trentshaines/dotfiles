@@ -12,10 +12,10 @@
   "quickadd",
   "settings-search",
   "actions-uri",
-  "obsidian-hotkeys-for-specific-files",
   "obsidian-annotator",
   "webpage-html-export",
   "obsidian-relative-line-numbers",
   "obsidian-vimrc-support",
-  "copilot"
+  "copilot",
+  "obsidian-hotkeys-for-specific-files"
 ]

@@ -1,0 +1,10 @@
+name: admin
+root: ~/.local
+
+windows:
+  - monitor:
+      layout: main-vertical
+      panes:
+        - btop || bpytop || top -o cpu  # Process monitor (left column)
+        - # interactive shell (top right)
+        - # interactive shell (bottom right)

@@ -343,7 +343,7 @@
       "modifiers": [
         "Ctrl"
       ],
-      "key": "1"
+      "key": "2"
     }
   ],
   "obsidian-hotkeys-for-specific-files:Zettelkasten/Life/Tasks/Task Log.md-new-tab": [
@@ -351,14 +351,6 @@
       "modifiers": [
         "Ctrl",
         "Shift"
-      ],
-      "key": "1"
-    }
-  ],
-  "obsidian-hotkeys-for-specific-files:Zettelkasten/Writings/Quartz/Essays/Essays Page.md": [
-    {
-      "modifiers": [
-        "Ctrl"
       ],
       "key": "2"
     }
@@ -369,7 +361,32 @@
         "Ctrl",
         "Shift"
       ],
-      "key": "2"
+      "key": "3"
+    }
+  ],
+  "obsidian-hotkeys-for-specific-files:Zettelkasten/Writings/Quartz/Essays/Essays Page.md": [
+    {
+      "modifiers": [
+        "Ctrl"
+      ],
+      "key": "3"
+    }
+  ],
+  "obsidian-hotkeys-for-specific-files:Zettelkasten/Notes/Home.md": [
+    {
+      "modifiers": [
+        "Ctrl"
+      ],
+      "key": "1"
+    }
+  ],
+  "obsidian-hotkeys-for-specific-files:Zettelkasten/Notes/Home.md-new-tab": [
+    {
+      "modifiers": [
+        "Ctrl",
+        "Shift"
+      ],
+      "key": "1"
     }
   ]
 }

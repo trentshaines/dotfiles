@@ -23,7 +23,7 @@ nmap gs :symbols<cr>
 
 " Then use Space directly in your mappings
 exmap completeTask obcommand editor:toggle-checklist-status
-nmap <Space>. mz:completeTask<CR>ddGp`z
+nmap <Space>. kmzj:completeTask<CR>ddGp`z
 
 
 " Common vim settings
