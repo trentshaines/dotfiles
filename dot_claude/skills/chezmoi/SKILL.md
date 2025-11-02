@@ -52,11 +52,24 @@ capply    # chezmoi apply (apply changes from source to home)
 
 - `chezmoi add <file>` - Add a NEW file that's NOT YET managed by chezmoi
 - `chezmoi re-add <file>` - Update an EXISTING file that's ALREADY managed
+- `chezmoi re-add <directory>` - Update directory AND pick up new files within it
 
 **How to know which to use:**
 ```bash
 chezmoi managed | grep filename   # If it shows up → use re-add
                                   # If it doesn't → use add
+```
+
+**SHORTCUT for managed directories:**
+
+If the parent directory is already managed, `re-add` on the directory picks up new files!
+
+```bash
+# These directories are ALREADY managed:
+chezmoi re-add ~/.claude/skills/          # Picks up new AND modified skills
+chezmoi re-add ~/.config/tmuxinator/      # Picks up new AND modified templates
+
+# So you DON'T need 'add' for new skills or templates - just re-add the directory!
 ```
 
 ### Essential Chezmoi Commands
@@ -90,9 +103,10 @@ exit                              # Exit chezmoi source directory
 **When you modify or create config files, use this workflow:**
 
 ```bash
-# Step 1: Add/re-add the files (use 'add' for new, 're-add' for existing)
-chezmoi add ~/.path/to/new-file        # if NEW
-chezmoi re-add ~/.path/to/existing-file  # if MODIFIED
+# Step 1: Re-add managed directories or files
+chezmoi re-add ~/.claude/skills/         # For skills (new OR modified)
+chezmoi re-add ~/.config/tmuxinator/     # For tmuxinator (new OR modified)
+chezmoi re-add ~/.zshrc                  # For individual files
 
 # Step 2: Work directly in the chezmoi source directory
 cd ~/.local/share/chezmoi
@@ -106,6 +120,8 @@ git push                               # Push to GitHub
 # Step 4: Return to previous directory
 cd -
 ```
+
+**Key insight:** For `~/.claude/skills/` and `~/.config/tmuxinator/`, just use `re-add` on the directory - it picks up new AND modified files!
 
 **Even simpler alternative (when unsure):**
 ```bash
@@ -205,7 +221,8 @@ cd -
 
 ### 2. Created NEW tmuxinator template
 ```bash
-chezmoi add ~/.config/tmuxinator/newtemplate.yml  # ADD, not re-add!
+# EASY: Just re-add the directory (it's already managed!)
+chezmoi re-add ~/.config/tmuxinator/
 cd ~/.local/share/chezmoi
 git add .
 git commit -m "Add new tmuxinator template: newtemplate"
@@ -215,7 +232,8 @@ cd -
 
 ### 3. Created NEW Claude skill
 ```bash
-chezmoi add ~/.claude/skills/my-skill/   # ADD new skill directory
+# EASY: Just re-add the directory (it's already managed!)
+chezmoi re-add ~/.claude/skills/
 cd ~/.local/share/chezmoi
 git add .
 git status                                # Verify the new files
@@ -235,20 +253,20 @@ git push
 cd -
 ```
 
-### 5. Mixed: new files + modified files (EASIEST)
+### 5. Mixed: new skills + modified configs (EASIEST)
 ```bash
-# Add new files individually
-chezmoi add ~/.config/newfile.yml
-chezmoi add ~/.claude/skills/newskill/
+# Re-add managed directories (picks up new AND modified files)
+chezmoi re-add ~/.claude/skills/
+chezmoi re-add ~/.config/tmuxinator/
 
-# Re-add modified files
+# Re-add individual modified files
 chezmoi re-add ~/.zshrc
 
 # Then commit everything
 cd ~/.local/share/chezmoi
 git add .
 git status  # Review everything
-git commit -m "Add new configs and update existing ones"
+git commit -m "Add new skills and update existing configs"
 git push
 cd -
 ```
