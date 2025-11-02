@@ -1,3 +1,5 @@
+Hello world
+
 # dotfiles
 
 This repo contains the configuration to set up configuration and install programs. 
