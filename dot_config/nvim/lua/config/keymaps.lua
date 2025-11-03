@@ -15,14 +15,14 @@ for i = 1, 9 do
   end, { desc = "Go to buffer " .. i })
 end
 
--- Window resizing with C-w + hjkl (since C-hjkl is used for navigation)
-map("n", "<C-w>h", "<cmd>vertical resize -2<cr>", { desc = "Decrease window width" })
-map("n", "<C-w>j", "<cmd>resize -2<cr>", { desc = "Decrease window height" })
-map("n", "<C-w>k", "<cmd>resize +2<cr>", { desc = "Increase window height" })
-map("n", "<C-w>l", "<cmd>vertical resize +2<cr>", { desc = "Increase window width" })
+-- Window resizing with C-w + hjkl (border-centric like tmux)
+map("n", "<C-w>h", "<cmd>vertical resize -2<cr>", { desc = "Move border left" })
+map("n", "<C-w>j", "<cmd>resize +2<cr>", { desc = "Move border down" })
+map("n", "<C-w>k", "<cmd>resize -2<cr>", { desc = "Move border up" })
+map("n", "<C-w>l", "<cmd>vertical resize +2<cr>", { desc = "Move border right" })
 
--- Large resize with C-w + Shift + HJKL
-map("n", "<C-w>H", "<cmd>vertical resize -10<cr>", { desc = "Decrease window width (large)" })
-map("n", "<C-w>J", "<cmd>resize -10<cr>", { desc = "Decrease window height (large)" })
-map("n", "<C-w>K", "<cmd>resize +10<cr>", { desc = "Increase window height (large)" })
-map("n", "<C-w>L", "<cmd>vertical resize +10<cr>", { desc = "Increase window width (large)" })
+-- Large resize with C-w + Shift + HJKL (border-centric)
+map("n", "<C-w>H", "<cmd>vertical resize -10<cr>", { desc = "Move border left (large)" })
+map("n", "<C-w>J", "<cmd>resize +10<cr>", { desc = "Move border down (large)" })
+map("n", "<C-w>K", "<cmd>resize -10<cr>", { desc = "Move border up (large)" })
+map("n", "<C-w>L", "<cmd>vertical resize +10<cr>", { desc = "Move border right (large)" })
