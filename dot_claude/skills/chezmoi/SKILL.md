@@ -172,8 +172,20 @@ cd -
    1. chezmoi re-add ~/.zshrc
    2. Commit and push to github.com/trentshaines/dotfiles
    ```
-3. ⚠️ **Wait for user confirmation** before running chezmoi commands
-4. ✅ If user confirms, execute the re-add and git workflow
+3. ✅ **Offer global re-add option** when appropriate:
+   - If multiple files were changed, or
+   - If there might be other uncommitted changes, or
+   - After syncing specific files
+
+   Ask: "Would you like to run `chezmoi re-add` (no args) to sync ALL modified managed files?"
+
+   This is useful because:
+   - It catches any other changes the user made manually
+   - It's simpler than specifying individual files
+   - It ensures everything is in sync
+
+4. ⚠️ **Wait for user confirmation** before running chezmoi commands
+5. ✅ If user confirms, execute the re-add and git workflow
 
 ### Example Prompt Template
 
