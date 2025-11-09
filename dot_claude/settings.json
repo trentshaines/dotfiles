@@ -1,7 +1,7 @@
 {
-  "alwaysThinkingEnabled": true,
   "sandbox": {
-    "enabled": true,
-    "autoAllowBashIfSandboxed": true
-  }
+    "autoAllowBashIfSandboxed": true,
+    "enabled": true
+  },
+  "alwaysThinkingEnabled": false
 }

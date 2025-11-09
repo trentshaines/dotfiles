@@ -71,6 +71,46 @@ sf() {
     fi
   fi
 }
+
+# Create new git directory and open with tmuxinator
+sc() {
+  local project_name="$1"
+  local template="${2:-default}"
+
+  if [[ -z "$project_name" ]]; then
+    echo "Usage: sc <project-name> [template]"
+    echo "  Creates ~/git/<project-name>, initializes git, and opens with tmuxinator"
+    echo "  template: tmuxinator template to use (default: default)"
+    return 1
+  fi
+
+  local project_dir="$HOME/git/$project_name"
+
+  # Check if directory already exists
+  if [[ -d "$project_dir" ]]; then
+    echo "Directory $project_dir already exists. Opening with tmuxinator..."
+  else
+    echo "Creating $project_dir..."
+    mkdir -p "$project_dir"
+    cd "$project_dir"
+    git init
+    echo "# $project_name" > README.md
+    echo "Initialized git repository at $project_dir"
+  fi
+
+  # Check if tmux session already exists
+  if tmux has-session -t "$project_name" 2>/dev/null; then
+    echo "Session $project_name already exists, connecting..."
+    sesh connect "$project_name"
+  elif [[ -f ~/.config/tmuxinator/${template}.yml ]]; then
+    # Use specified template
+    echo "Starting tmuxinator with $template template..."
+    tmuxinator start "$template" "$project_name"
+  else
+    echo "Template $template not found, using default..."
+    tmuxinator start default "$project_name"
+  fi
+}
 alias sls='sesh list' #sesh list sessions
 
 alias tcopy='tmux save-buffer - | pbcopy'
