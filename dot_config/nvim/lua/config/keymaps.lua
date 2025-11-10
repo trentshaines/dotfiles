@@ -26,3 +26,7 @@ map("n", "<C-w>H", "<cmd>vertical resize -10<cr>", { desc = "Decrease window wid
 map("n", "<C-w>J", "<cmd>resize -10<cr>", { desc = "Decrease window height (large)" })
 map("n", "<C-w>K", "<cmd>resize +10<cr>", { desc = "Increase window height (large)" })
 map("n", "<C-w>L", "<cmd>vertical resize +10<cr>", { desc = "Increase window width (large)" })
+
+-- Spell checking keymaps
+map("n", "zc", "1z=", { desc = "Auto-correct with first suggestion" })
+map("n", "zv", "z=", { desc = "List spelling suggestions" })

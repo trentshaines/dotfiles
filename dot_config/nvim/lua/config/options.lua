@@ -17,3 +17,7 @@ vim.api.nvim_create_autocmd({ "BufEnter", "CursorHold", "CursorHoldI", "FocusGai
 -- Disable snacks scroll animations
 vim.g.snacks_animate = false
 
+-- Enable spell checking
+vim.opt.spell = true
+vim.opt.spelllang = "en_us"
+
