@@ -4,7 +4,7 @@ return {
     opts = {
       picker = {
         hidden = true, -- show hidden files
-        ignored = true, -- show .gitignore files
+        follow_ignored = false, -- don't follow .gitignore (shows ignored files)
       },
     },
   },

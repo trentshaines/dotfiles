@@ -21,3 +21,9 @@ vim.g.snacks_animate = false
 vim.opt.spell = true
 vim.opt.spelllang = "en_us"
 
+-- Enable readable wrapped code globally
+vim.opt.wrap = true            -- Enable line wrapping
+vim.opt.linebreak = true       -- Break at word boundaries
+vim.opt.breakindent = true     -- Maintain indentation on wrapped lines
+vim.opt.showbreak = "↪ "       -- Visual indicator for wrapped lines
+
