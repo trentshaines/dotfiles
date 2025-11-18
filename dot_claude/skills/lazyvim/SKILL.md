@@ -137,3 +137,42 @@ return {
 - `:checkhealth` - Run Neovim health checks
 - `:help lazy.nvim` - View lazy.nvim documentation
 - `:help lazyvim` - View LazyVim documentation
+
+## Listing All Keybindings
+
+### For Claude: Extracting Keybindings Programmatically
+
+**IMPORTANT FOR CLAUDE**: When the user asks you to list keybindings or you need to discover what keybindings are available, use this command:
+
+```bash
+nvim --headless +"lua local keymaps = vim.api.nvim_get_keymap('n'); for _, map in ipairs(keymaps) do if map.lhs:match('^%s') and map.desc then print(string.format('%s|%s', map.lhs:gsub('%s', '<leader>'), map.desc)) end end" +quit 2>&1 | sort
+```
+
+**What this does:**
+- Runs Neovim headlessly (no UI)
+- Extracts all normal mode keymaps (`vim.api.nvim_get_keymap('n')`)
+- Filters for leader keybindings (those starting with space)
+- Prints in format: `<leader>key|Description`
+- Sorts the output alphabetically
+
+**Output format example:**
+```
+<leader>ff|Find Files (Root Dir)
+<leader>fg|Find Files (git-files)
+<leader>gB|Browse git link
+<leader>sk|Keymaps
+```
+
+**To extract ALL modes (not just normal):**
+```bash
+nvim --headless +"lua for _, mode in ipairs({'n', 'v', 'i', 'x', 't'}) do local maps = vim.api.nvim_get_keymap(mode); for _, map in ipairs(maps) do if map.desc then print(string.format('[%s] %s|%s', mode, map.lhs, map.desc)) end end end" +quit 2>&1 | sort
+```
+
+**To get raw keymap data (includes callbacks, functions, etc.):**
+```bash
+nvim --headless -c "lua vim.print(vim.inspect(vim.api.nvim_get_keymap('n')))" -c "quit"
+```
+
+### Official Documentation References
+- **Online**: https://www.lazyvim.org/keymaps
+- **Source**: https://github.com/LazyVim/LazyVim/blob/main/lua/lazyvim/config/keymaps.lua
