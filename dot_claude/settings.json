@@ -1,7 +1,13 @@
 {
+  "enabledPlugins": {
+    "claude-autocomplete-optimizer@local-dev": false
+  },
   "sandbox": {
     "autoAllowBashIfSandboxed": true,
     "enabled": true
   },
-  "alwaysThinkingEnabled": false
+  "alwaysThinkingEnabled": false,
+  "plugins": [
+    "claude-autocomplete-plugin"
+  ]
 }

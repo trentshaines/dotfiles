@@ -27,3 +27,6 @@ vim.opt.linebreak = true       -- Break at word boundaries
 vim.opt.breakindent = true     -- Maintain indentation on wrapped lines
 vim.opt.showbreak = "↪ "       -- Visual indicator for wrapped lines
 
+-- Fix statusline jumping when opening/closing explorer
+vim.opt.laststatus = 3         -- Global statusline (prevents jumping)
+
