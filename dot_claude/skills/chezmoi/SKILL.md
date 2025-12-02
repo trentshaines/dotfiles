@@ -1,13 +1,13 @@
 ---
 name: chezmoi
-description: Help with chezmoi dotfile management, syncing configs, and pushing changes to the dotfiles repository. Use when modifying configuration files in ~/.config, ~/, or other managed locations. ALWAYS prompt the user about syncing to chezmoi after making config changes.
+description: Help with chezmoi dotfile management, ansible playbooks, and syncing configs to the dotfiles repository. Use when modifying configuration files in ~/.config, ~/, ansible playbooks, or other managed locations. ALWAYS prompt the user about syncing to chezmoi after making config changes.
 ---
 
 # Chezmoi Dotfile Management Skill
 
 ## Overview
 
-Chezmoi manages dotfiles and system configuration, syncing them to a Git repository for version control and portability across machines.
+Chezmoi manages dotfiles and system configuration, syncing them to a Git repository for version control and portability across machines. This includes ansible playbooks for system package installation.
 
 ## Key Locations
 
@@ -15,6 +15,7 @@ Chezmoi manages dotfiles and system configuration, syncing them to a Git reposit
 - **Git repository**: `https://github.com/trentshaines/dotfiles.git`
 - **Home directory**: `~/` (managed files)
 - **Config directory**: `~/.config/` (managed files)
+- **Ansible playbooks**: `~/ansible/` (managed via chezmoi)
 
 ## Managed Files
 
@@ -34,6 +35,7 @@ Important files tracked by chezmoi (in source directory):
 - `dot_claude/` → `~/.claude/` (skills, settings, etc.)
 - `dot_cursor/` → `~/.cursor/`
 - `dot_local/` → `~/.local/`
+- `ansible/` → `~/ansible/` (ansible playbooks for package installation)
 - `private_Documents/` → `~/Documents/` (private, encrypted)
 - `private_Library/` → `~/Library/` (private, encrypted)
 
@@ -219,6 +221,49 @@ chezmoi managed                   # List all managed files
 chezmoi managed | grep tmux       # Find tmux-related managed files
 ```
 
+## Ansible Playbooks
+
+### Overview
+Ansible playbooks in `~/ansible/` define system package installation and configuration. These are managed by chezmoi and synced to the dotfiles repo.
+
+### Location
+- `~/ansible/playbooks/packages.yml` - Main package installation playbook
+
+### What It Installs
+- **Homebrew** packages (formulae and casks)
+- **Homebrew taps** (custom repositories)
+- **Oh My Zsh** (if not already installed)
+- **TPM** (Tmux Plugin Manager)
+- **npm global packages** (like Claude Code)
+
+### Running the Playbook
+```bash
+cd ~/ansible
+ansible-playbook playbooks/packages.yml
+```
+
+### After Modifying Ansible Playbooks
+```bash
+# Option 1: Re-add ansible directory
+chezmoi re-add ~/ansible/
+
+# Option 2: Re-add specific playbook
+chezmoi re-add ~/ansible/playbooks/packages.yml
+
+# Then commit and push
+cd ~/.local/share/chezmoi
+git add ansible/
+git commit -m "Update ansible packages playbook"
+git push
+cd -
+```
+
+### Common Ansible Modifications
+1. **Adding new brew packages**: Add to `name:` list under `Install brew formulae`
+2. **Adding new casks**: Add to `name:` list under `Install brew casks`
+3. **Adding new taps**: Add to `name:` list under `Add brew taps`
+4. **Adding new tasks**: Add new task blocks for additional setup steps
+
 ## Common Scenarios
 
 ### 1. Modified an existing dotfile (e.g., .zshrc)
@@ -283,7 +328,17 @@ git push
 cd -
 ```
 
-### 6. Want to see what changed
+### 6. Modified ansible playbook
+```bash
+chezmoi re-add ~/ansible/playbooks/packages.yml
+cd ~/.local/share/chezmoi
+git add ansible/
+git commit -m "Add fd, btop, oh-my-zsh, TPM, and Claude Code to ansible"
+git push
+cd -
+```
+
+### 7. Want to see what changed
 ```bash
 chezmoi diff                      # See what would change
 cd ~/.local/share/chezmoi && git status  # See what's uncommitted

@@ -16,29 +16,6 @@ This system uses tmux with tmuxinator templates and sesh for powerful session ma
 - **Zsh tmux aliases/functions**: `~/.zshrc` (lines 37-72)
 - **Active sessions**: Check with `tmux ls` or `sesh list`
 
-## CRITICAL: Tmux Pane Indexing
-
-**IMPORTANT**: This tmux configuration uses **1-based indexing** for both windows and panes (set in `~/.tmux.conf`):
-```tmux
-set -g base-index 1
-set -g pane-base-index 1
-```
-
-This means:
-- **Panes start at 1, not 0**
-- First pane created = pane 1
-- Second pane = pane 2
-- Third pane = pane 3
-
-When writing shell functions or tmux commands that target specific panes, always use 1-based indexing:
-```bash
-select-pane -t 1  # First pane
-select-pane -t 2  # Second pane
-select-pane -t 3  # Third pane
-```
-
-To check pane numbers visually in tmux: `prefix + q` (Ctrl+Space then q)
-
 ## Tmuxinator Templates
 
 ### Current Templates
@@ -60,6 +37,17 @@ To check pane numbers visually in tmux: `prefix + q` (Ctrl+Space then q)
 
 ### Template Structure
 
+**CRITICAL: Pane Indexing**
+This tmux configuration uses **1-based indexing** (set in `~/.tmux.conf`):
+```tmux
+set -g base-index 1        # Windows start at 1
+set -g pane-base-index 1   # Panes start at 1
+```
+- First pane = 1, second = 2, third = 3
+- Use `prefix + q` (Ctrl+Space then q) to see pane numbers visually
+- When targeting panes in commands: `select-pane -t 1` (not -t 0)
+
+**Tmuxinator YAML Structure:**
 ```yaml
 ---
 name: session-name  # Fixed name (or use <%= File.basename(...) %> for dynamic)
@@ -72,9 +60,34 @@ windows:
       layout: main-horizontal  # or main-vertical, tiled, even-horizontal, etc.
       panes:
         - nvim                 # Command to run in pane 1
-        - # empty terminal     # Empty pane (interactive shell)
+        - # empty terminal     # Empty pane (interactive shell) - pane 2
         - claude --resume      # Command for pane 3
 ```
+
+**Shell Function Structure (for creating windows dynamically):**
+```bash
+tnw() {
+  # Get the session's root directory (uses 1-based indexing internally)
+  local session_path=$(tmux display-message -p '#{session_path}')
+
+  tmux new-window -c "$session_path" \; \
+    split-window -v -c "$session_path" \; \
+    split-window -v -c "$session_path" \; \
+    select-layout main-horizontal \; \
+    select-pane -t 1 \; \
+    send-keys 'nvim' C-m \; \
+    select-pane -t 3 \; \
+    send-keys 'claude --resume' C-m \; \
+    select-pane -t 2
+}
+```
+
+**Key points for both:**
+- Use `#{session_path}` to get session root directory (not current pane path)
+- Pane indexing is 1-based: first pane = 1, not 0
+- `send-keys 'command' C-m` executes commands in panes (C-m = Enter)
+- `select-pane -t N` focuses pane N (1-based)
+- `select-layout` applies tmux built-in layouts
 
 ### Common Layouts
 
@@ -84,15 +97,15 @@ windows:
 - `even-horizontal` - Panes side-by-side equal width
 - `even-vertical` - Panes top-to-bottom equal height
 
-## Session Management with `sf`
+## Session Management with `ts` (tmux session selector)
 
-The `sf` function (defined in `~/.zshrc:53-72`) is the main session switcher:
+The `ts` function (defined in `~/.zshrc`) is the main session switcher:
 
 ```bash
-sf  # Opens fzf with: "home" + tmuxinator templates + active sessions
+ts  # Opens fzf with: "home" + tmuxinator templates + active sessions
 ```
 
-### How `sf` Works
+### How `ts` Works
 
 1. Lists all tmuxinator templates (except default.yml)
 2. Adds "home" as an option
@@ -106,17 +119,30 @@ sf  # Opens fzf with: "home" + tmuxinator templates + active sessions
 
 Template names come from the **filename** (e.g., `admin.yml` → "admin" in fzf), but the actual tmux session name comes from the `name:` field in the YAML file.
 
-## Tmux Aliases
+## Tmux Functions & Aliases
 
 From `~/.zshrc`:
 
+### Session Management
 ```bash
+ts          # Tmux session selector (fzf for sessions/templates)
+tns <name>  # Tmux new session - create git project & open with tmuxinator
+t [name]    # Smart attach/create - attach if exists, create if not
 ta <name>   # Attach to session
 tn <name>   # Create new session
 tls         # List sessions
 tk <name>   # Kill session
-t [name]    # Smart attach/create - attach if exists, create if not
+```
 
+### Window Management
+```bash
+tnw         # Tmux new window - create window with 3-pane layout
+            # Layout: pane 1=nvim, pane 2=terminal (focused), pane 3=claude
+            # Bound to: prefix + N
+```
+
+### Utilities
+```bash
 tcopy       # Copy tmux buffer to clipboard
 tlines [n]  # Copy last n lines from tmux pane to clipboard
 ```
@@ -126,10 +152,21 @@ tlines [n]  # Copy last n lines from tmux pane to clipboard
 ### Starting Sessions
 
 ```bash
-sf                              # Use fzf to select session
-tmuxinator start admin          # Start admin monitoring
-tmuxinator start config         # Edit dotfiles
-tmuxinator start default ~/git/myproject  # New project session
+ts                                        # Use fzf to select session/template
+tns myproject                             # Create ~/git/myproject with git + tmuxinator
+tns myproject config                      # Use 'config' template instead of default
+tmuxinator start admin                    # Start admin monitoring
+tmuxinator start config                   # Edit dotfiles
+tmuxinator start default ~/git/myproject  # New project session with default template
+```
+
+### Creating Windows
+
+```bash
+tnw                # Create new window with 3-pane layout in current session
+prefix + N         # Keybinding for tnw (Ctrl+Space then Shift+N)
+prefix + c         # Create empty new window (default tmux)
+prefix + ,         # Rename current window
 ```
 
 ### Creating New Templates

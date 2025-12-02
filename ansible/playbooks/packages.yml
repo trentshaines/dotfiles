@@ -32,6 +32,7 @@
 
           # Search and navigation
           - fzf
+          - fd
           - ripgrep
           - zoxide
           - bat
@@ -52,6 +53,7 @@
           # Utilities
           - chezmoi
           - htop
+          - btop
           - tree-sitter
           - sesh
           - tmuxinator
@@ -73,4 +75,24 @@
       homebrew_cask:
         name:
           - aerospace
+        state: present
+
+    - name: Install Oh My Zsh
+      shell: |
+        if [ ! -d "$HOME/.oh-my-zsh" ]; then
+          sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)" "" --unattended
+        fi
+      args:
+        creates: "{{ ansible_env.HOME }}/.oh-my-zsh"
+
+    - name: Install TPM (Tmux Plugin Manager)
+      git:
+        repo: https://github.com/tmux-plugins/tpm
+        dest: "{{ ansible_env.HOME }}/.tmux/plugins/tpm"
+        update: no
+
+    - name: Install Claude Code globally via npm
+      npm:
+        name: "@anthropic-ai/claude-code"
+        global: yes
         state: present
