@@ -12,8 +12,32 @@ This system uses tmux with tmuxinator templates and sesh for powerful session ma
 ## Configuration Locations
 
 - **Tmuxinator templates**: `~/.config/tmuxinator/*.yml`
+- **Tmux config**: `~/.tmux.conf`
 - **Zsh tmux aliases/functions**: `~/.zshrc` (lines 37-72)
 - **Active sessions**: Check with `tmux ls` or `sesh list`
+
+## CRITICAL: Tmux Pane Indexing
+
+**IMPORTANT**: This tmux configuration uses **1-based indexing** for both windows and panes (set in `~/.tmux.conf`):
+```tmux
+set -g base-index 1
+set -g pane-base-index 1
+```
+
+This means:
+- **Panes start at 1, not 0**
+- First pane created = pane 1
+- Second pane = pane 2
+- Third pane = pane 3
+
+When writing shell functions or tmux commands that target specific panes, always use 1-based indexing:
+```bash
+select-pane -t 1  # First pane
+select-pane -t 2  # Second pane
+select-pane -t 3  # Third pane
+```
+
+To check pane numbers visually in tmux: `prefix + q` (Ctrl+Space then q)
 
 ## Tmuxinator Templates
 
