@@ -50,8 +50,8 @@ t() {
   fi
 }
 
-# Sesh + Tmuxinator
-sf() {
+# Sesh + Tmuxinator - fuzzy session selector
+ts() {
   # Get all tmuxinator templates (excluding default.yml)
   local tmuxinator_templates=$(ls ~/.config/tmuxinator/*.yml 2>/dev/null | xargs -n1 basename | sed 's/\.yml$//' | grep -v "^default$")
 
@@ -73,12 +73,12 @@ sf() {
 }
 
 # Create new git directory and open with tmuxinator
-sc() {
+tns() {
   local project_name="$1"
   local template="${2:-default}"
 
   if [[ -z "$project_name" ]]; then
-    echo "Usage: sc <project-name> [template]"
+    echo "Usage: tns <project-name> [template]"
     echo "  Creates ~/git/<project-name>, initializes git, and opens with tmuxinator"
     echo "  template: tmuxinator template to use (default: default)"
     return 1
@@ -118,6 +118,22 @@ tlines(){
     | tail -n "$((n + 2))" \
     | head -n "$n" \
     | pbcopy
+}
+
+# Create new tmux window with 3-pane layout (nvim, shell, claude)
+tnw() {
+  # Get the session's root directory
+  local session_path=$(tmux display-message -p '#{session_path}')
+
+  tmux new-window -c "$session_path" \; \
+    split-window -v -c "$session_path" \; \
+    split-window -v -c "$session_path" \; \
+    select-layout main-horizontal \; \
+    select-pane -t 1 \; \
+    send-keys 'nvim' C-m \; \
+    select-pane -t 3 \; \
+    send-keys 'claude --resume' C-m \; \
+    select-pane -t 2
 }
 
 # Vi mode
@@ -446,3 +462,4 @@ alias capply='chezmoi apply'
 
 alias fcopy='pbcopy < "$(fzf)"'
 
+export PATH="$HOME/bin:$PATH"
