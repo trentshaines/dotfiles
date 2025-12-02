@@ -74,6 +74,34 @@ chezmoi re-add ~/.config/tmuxinator/      # Picks up new AND modified templates
 # So you DON'T need 'add' for new skills or templates - just re-add the directory!
 ```
 
+**IMPORTANT: `chezmoi re-add` with NO arguments**
+
+Running `chezmoi re-add` without any arguments will re-add **ALL modified managed files**:
+
+```bash
+chezmoi re-add    # Re-add everything that changed
+```
+
+**When to use this:**
+- After making multiple config changes across different files
+- When you're unsure what you modified
+- To catch any manual edits you forgot about
+
+**⚠️ CRITICAL: Always check what changed before committing!**
+
+```bash
+chezmoi re-add                    # Re-add all changes
+cd ~/.local/share/chezmoi
+git status                        # See what files changed
+git diff                          # Review the actual changes
+```
+
+**Why this matters:**
+- You might have accidentally modified a managed file
+- Ensures you don't commit unwanted changes
+- Helps you write accurate commit messages
+- Catches any test/debug changes you forgot to revert
+
 ### Essential Chezmoi Commands
 
 ```bash
@@ -81,6 +109,7 @@ chezmoi re-add ~/.config/tmuxinator/      # Picks up new AND modified templates
 chezmoi add ~/.new-file           # Add NEW file (first time)
 chezmoi re-add ~/.zshrc           # Re-add EXISTING managed file
 chezmoi re-add ~/.config/tmuxinator/admin.yml  # Re-add EXISTING config
+chezmoi re-add                    # Re-add ALL modified managed files (no args!)
 
 # Apply changes FROM chezmoi source TO home
 chezmoi apply                     # Apply all changes
@@ -152,15 +181,21 @@ chezmoi re-add ~/.zshrc
 chezmoi re-add ~/.config/tmuxinator/admin.yml
 ```
 
-### Step 2: Commit and push to Git
+### Step 2: Check for unexpected changes and commit
 ```bash
 cd ~/.local/share/chezmoi
+git status  # ⚠️ ALWAYS check what files changed
+git diff    # Review the actual changes (optional but recommended)
 git add .
-git status  # Review changes
 git commit -m "Description of changes"
 git push
 cd -
 ```
+
+**⚠️ IMPORTANT:** Always run `git status` before committing to catch:
+- Unintended modifications to managed files
+- Leftover test/debug changes
+- Files you modified but forgot about
 
 ## Claude's Responsibility
 
@@ -188,6 +223,14 @@ cd -
 
 4. ⚠️ **Wait for user confirmation** before running chezmoi commands
 5. ✅ If user confirms, execute the re-add and git workflow
+6. ⚠️ **ALWAYS check git status** before committing:
+   ```bash
+   cd ~/.local/share/chezmoi
+   git status  # Show user what files changed
+   ```
+   - If unexpected files appear, inform the user
+   - Ask if they want to review changes with `git diff`
+   - Only proceed with commit if changes look correct
 
 ### Example Prompt Template
 
