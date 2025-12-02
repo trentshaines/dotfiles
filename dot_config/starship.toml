@@ -1,6 +1,8 @@
 "$schema" = 'https://starship.rs/config-schema.json'
 
 format = """
+╭──\
+[](fg:#769ff0)\
 $directory\
 [ ](fg:#769ff0 bg:#394260)\
 $git_branch\
@@ -12,10 +14,11 @@ $golang\
 $php\
 [ ](fg:#212736 bg:#33658A)\
 $cmd_duration\
+$status\
 [ ](fg:#33658A bg:#1d2230)\
 $time\
-[](fg:#1d2230)\
-$character """
+$character\
+\n╰─\\$ """
 
 [directory]
 style = "fg:#e3e5e5 bg:#769ff0"
@@ -61,6 +64,17 @@ time_format = "%R" # Hour:Minute
 style = "bg:#1d2230"
 format = '[[  $time ](fg:#a0a9cb bg:#1d2230)]($style)'
 
+[status]
+disabled = false
+format = '[[$symbol ](fg:#e3e5e5 bg:#33658A)]($style)'
+success_symbol = '✓'
+not_executable_symbol = '✗'
+not_found_symbol = '✗'
+sigint_symbol = '✗'
+signal_symbol = '✗'
+map_symbol = true
+pipestatus = true
+
 [cmd_duration]
 min_time = 0
 show_milliseconds = true
@@ -68,6 +82,8 @@ style = "bg:#33658A"
 format = '[[ 󱦟 $duration ](fg:#e3e5e5 bg:#33658A)]($style)'
 
 [character]
-format = '$symbol'
-success_symbol = '[ ](fg:#1d2230 bg:#ffffd7)[  INSERT  ](fg:#000000 bg:#ffffd7)[](fg:#ffffd7)'
-vimcmd_symbol = '[ ](fg:#1d2230 bg:#d7d7ff)[  NORMAL  ](fg:#000000 bg:#d7d7ff)[](fg:#d7d7ff)'
+success_symbol = ""
+error_symbol = ""
+vimcmd_symbol = ""
+vimcmd_visual_symbol = ""
+vimcmd_replace_symbol = ""
