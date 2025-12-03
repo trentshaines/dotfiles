@@ -25,20 +25,28 @@ All your key functionality has been ported:
 - Vim integration (vf, ff)
 - Vi mode keybindings
 
-**⚠️ Needs setup:**
-- **NVM**: Requires `fisher` plugin manager and `bass`
+**✅ NVM Setup Complete:**
+- **Fisher**: Plugin manager installed
+- **Bass**: Bash command wrapper installed
+- **nvm.fish**: Fish-native NVM installed
+- **Node 20**: Installed and active
 
-### 3. Setting Up NVM (Optional)
+### 3. NVM Usage
 
-If you need NVM in fish:
+NVM is already set up! Common commands:
 
-```bash
-# In fish shell
-curl -sL https://raw.githubusercontent.com/jorgebucaran/fisher/main/functions/fisher.fish | source && fisher install jorgebucaran/fisher
-fisher install edc/bass
+```fish
+nvm list              # List installed Node versions
+nvm install 18        # Install Node 18
+nvm use 20            # Switch to Node 20
+nvm current           # Show current version
+node --version        # Check Node version
 ```
 
-Then reload fish and NVM will work.
+**Installed via fisher:**
+- `jorgebucaran/fisher` - Plugin manager
+- `edc/bass` - Run bash commands in fish
+- `jorgebucaran/nvm.fish` - Fish-native NVM
 
 ### 4. Testing Your Workflow
 

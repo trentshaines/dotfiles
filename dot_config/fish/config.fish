@@ -26,15 +26,10 @@ zoxide init fish | source
 # fzf (fuzzy finder)
 fzf --fish | source
 
-# NVM (Node Version Manager)
-# Note: Requires 'bass' and 'fisher' to work in fish
-# Install with: fisher install edc/bass
-# For now, we'll skip NVM in fish - you can install bass later if needed
-set -gx NVM_DIR "$HOME/.nvm"
-# if command -v bass &> /dev/null; and test -s /opt/homebrew/opt/nvm/nvm.sh
-#     bass source /opt/homebrew/opt/nvm/nvm.sh --no-use
-#     nvm use 20 --silent
-# end
+# NVM (Node Version Manager) - fish native version via nvm.fish
+# Installed via: fisher install jorgebucaran/nvm.fish
+# Usage: nvm install 20, nvm use 20, nvm list
+# Auto-installed by fisher, no additional setup needed
 
 ################################################################################
 # Aliases
