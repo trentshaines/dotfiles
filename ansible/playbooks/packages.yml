@@ -30,6 +30,10 @@
           - gh
           - lazygit
 
+          # Shell
+          - fish
+          - starship
+
           # Search and navigation
           - fzf
           - fd
@@ -84,6 +88,21 @@
         fi
       args:
         creates: "{{ ansible_env.HOME }}/.oh-my-zsh"
+
+    - name: Add fish to /etc/shells
+      become: yes
+      lineinfile:
+        path: /etc/shells
+        line: /opt/homebrew/bin/fish
+        state: present
+      when: ansible_facts['os_family'] == 'Darwin'
+
+    - name: Set fish as default shell
+      become: yes
+      user:
+        name: "{{ ansible_env.USER }}"
+        shell: /opt/homebrew/bin/fish
+      when: ansible_facts['os_family'] == 'Darwin'
 
     - name: Install TPM (Tmux Plugin Manager)
       git:
