@@ -1,4 +1,5 @@
 bin/
 .DS_Store
 .config/nvim/lazy-lock.json
+.config/fish/secrets.fish
 README.md

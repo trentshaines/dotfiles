@@ -13,6 +13,11 @@ set -gx PATH "/Applications/Rider.app/Contents/MacOS" $PATH
 set -gx PATH "$HOME/bin" $PATH
 set -gx PASSWORD_STORE_ENABLE_EXTENSIONS true
 
+# Load secrets (API keys, tokens, etc.) - not tracked in dotfiles
+if test -f ~/.config/fish/secrets.fish
+    source ~/.config/fish/secrets.fish
+end
+
 ################################################################################
 # Essential Tools
 ################################################################################
