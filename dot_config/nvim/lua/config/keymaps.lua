@@ -30,3 +30,9 @@ map("n", "<C-w>L", "<cmd>vertical resize +10<cr>", { desc = "Increase window wid
 -- Spell checking keymaps
 map("n", "zc", "1z=", { desc = "Auto-correct with first suggestion" })
 map("n", "zv", "z=", { desc = "List spelling suggestions" })
+
+-- Parrot AI keymaps
+map("v", "<leader>ar", ":PrtRewrite<cr>", { desc = "AI Rewrite" })
+map("v", "<leader>ac", ":PrtComplete<cr>", { desc = "AI Complete" })
+map("v", "<leader>ai", ":PrtImplement<cr>", { desc = "AI Implement" })
+map("n", "<leader>am", "<cmd>PrtModel<cr>", { desc = "AI Model Select" })
