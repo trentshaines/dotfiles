@@ -79,6 +79,7 @@
       homebrew_cask:
         name:
           - aerospace
+          - espanso
         state: present
 
     - name: Install Oh My Zsh
