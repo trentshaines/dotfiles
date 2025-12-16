@@ -5,6 +5,11 @@
 matches:
   - trigger: ":mail"
     replace: "trentshaines@gmail.com"
+  - trigger: ":dmail"
+    replace: "trent.haines@decagon.ai"
+  - trigger: ":num"
+    replace: "469-929-0757"
+
 
   - trigger: ":date"
     replace: "{{mydate}}"
