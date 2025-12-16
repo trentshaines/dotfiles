@@ -18,6 +18,8 @@
           - joshmedeski/sesh
           - felixkratz/formulae
           - kyu08/tap
+          - nikitabobko/tap
+          - homebrew/cask-fonts
         state: present
 
     - name: Install brew formulae
@@ -78,8 +80,13 @@
     - name: Install brew casks
       homebrew_cask:
         name:
-          - aerospace
+          - nikitabobko/tap/aerospace
+          - raycast
+          - obsidian
+          - alacritty
+          - karabiner-elements
           - espanso
+          - font-hack-nerd-font
         state: present
 
     - name: Install Oh My Zsh
