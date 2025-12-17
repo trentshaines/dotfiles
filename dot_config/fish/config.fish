@@ -43,8 +43,8 @@ fzf --fish | source
 # Shell management
 alias ef='nvim ~/.config/fish/config.fish'
 alias sf='source ~/.config/fish/config.fish'
-alias ez='nvim ~/.zshrc'  # Keep for editing zsh if needed
-alias sz='source ~/.zshrc'  # Keep for zsh
+alias ez='nvim ~/.zshrc' # Keep for editing zsh if needed
+alias sz='source ~/.zshrc' # Keep for zsh
 alias clauded='claude --dangerously-skip-permissions'
 
 # Better defaults with modern tools
@@ -136,7 +136,21 @@ end
 # Auto-create home tmux session
 ################################################################################
 
-if command -v tmux &> /dev/null; and not set -q TMUX
+if command -v tmux &>/dev/null; and not set -q TMUX
     # Create a "home" session if it doesn't exist
     tmux has-session -t home 2>/dev/null; or tmux new-session -d -s home -c ~
+end
+
+set -Ux PYENV_ROOT $HOME/.pyenv
+fish_add_path $PYENV_ROOT/bin
+pyenv init - | source
+pyenv virtualenv-init - | source
+
+if [ -f '/Users/trent/Downloads/google-cloud-sdk/path.fish.inc' ]
+    . '/Users/trent/Downloads/google-cloud-sdk/path.fish.inc'
+end
+
+# Claude Code (conditional on DECAGON env var)
+if test "$DECAGON" = true
+    bass source ~/git/duet/claude_code.env
 end
