@@ -1,6 +1,7 @@
 return {
   "frankroeder/parrot.nvim",
   dependencies = { "ibhagwan/fzf-lua", "nvim-lua/plenary.nvim" },
+  enabled = vim.env.DECAGON_ENV == nil, -- disable if DECAGON_ENV is set
   config = function()
     require("parrot").setup({
       providers = {
