@@ -42,7 +42,7 @@ fzf --fish | source
 
 # Shell management
 alias ef='nvim ~/.config/fish/config.fish'
-alias sf='source ~/.config/fish/config.fish'
+alias elf='nvim ~/.config/fish/conf.d/local.fish'
 alias ez='nvim ~/.zshrc' # Keep for editing zsh if needed
 alias sz='source ~/.zshrc' # Keep for zsh
 alias clauded='claude --dangerously-skip-permissions'

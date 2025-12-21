@@ -2,3 +2,5 @@
 .vscode/
 .idea/
 .apikeys
+.envrc
+.claude/settings.local.json
