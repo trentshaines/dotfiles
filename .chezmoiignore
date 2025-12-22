@@ -4,3 +4,5 @@ bin/
 .config/fish/secrets.fish
 .config/fish/conf.d/local.fish
 README.md
+.tmux/plugins/
+.tmux/resurrect/
