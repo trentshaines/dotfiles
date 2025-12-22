@@ -32,7 +32,7 @@ map("n", "zc", "1z=", { desc = "Auto-correct with first suggestion" })
 map("n", "zv", "z=", { desc = "List spelling suggestions" })
 
 -- Parrot AI keymaps
-map("v", "<leader>ar", ":PrtRewrite<cr>", { desc = "AI Rewrite" })
-map("v", "<leader>ac", ":PrtComplete<cr>", { desc = "AI Complete" })
-map("v", "<leader>ai", ":PrtImplement<cr>", { desc = "AI Implement" })
-map("n", "<leader>am", "<cmd>PrtModel<cr>", { desc = "AI Model Select" })
+map("v", "<leader>Cr", ":PrtRewrite<cr>", { desc = "AI Rewrite" })
+map("v", "<leader>Cc", ":PrtComplete<cr>", { desc = "AI Complete" })
+map("v", "<leader>Ci", ":PrtImplement<cr>", { desc = "AI Implement" })
+map("n", "<leader>Cm", "<cmd>PrtModel<cr>", { desc = "AI Model Select" })
