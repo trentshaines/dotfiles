@@ -1,6 +1,10 @@
 [user]
 	name = Trent Haines
+{{- if eq .chezmoi.hostname "trent-decagon" }}
 	email = trent.haines@decagon.ai
+{{- else }}
+	email = trentshaines@gmail.com
+{{- end }}
 [filter "lfs"]
 	required = true
 	clean = git-lfs clean -- %f
@@ -18,7 +22,7 @@
 [credential "https://dev.azure.com"]
 	useHttpPath = true
 [credential "https://github.rbx.com"]
-	helper = 
+	helper =
 	helper = !/opt/homebrew/bin/gh auth git-credential
 [alias]
 	sync-master = !git fetch origin master && git merge origin/master
