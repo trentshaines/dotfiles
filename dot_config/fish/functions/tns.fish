@@ -12,6 +12,9 @@ function tns
 
     set -l project_dir "$HOME/git/$project_name"
 
+    # Save original directory
+    set -l original_dir (pwd)
+
     # Check if directory already exists
     if test -d "$project_dir"
         echo "Directory $project_dir already exists. Opening with tmuxinator..."
@@ -22,6 +25,8 @@ function tns
         and git init
         and echo "# $project_name" > README.md
         echo "Initialized git repository at $project_dir"
+        # Restore original directory
+        cd "$original_dir"
     end
 
     # Check if tmux session already exists
