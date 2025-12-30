@@ -4,7 +4,7 @@ function ts
     set -l tmuxinator_templates (ls ~/.config/tmuxinator/*.yml 2>/dev/null | xargs -n1 basename | sed 's/\.yml$//' | grep -v "^default\$")
 
     # Combine: "home" + tmuxinator templates + sesh list
-    set -l session (echo -e "home\n$tmuxinator_templates\n"(sesh list) | fzf)
+    set -l session (printf '%s\n' "home" $tmuxinator_templates (sesh list) | fzf)
 
     if test -n "$session"
         if tmux has-session -t "$session" 2>/dev/null
