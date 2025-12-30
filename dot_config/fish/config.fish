@@ -46,6 +46,10 @@ alias elf='nvim ~/.config/fish/conf.d/local.fish'
 alias ez='nvim ~/.zshrc' # Keep for editing zsh if needed
 alias sz='source ~/.zshrc' # Keep for zsh
 alias clauded='claude --dangerously-skip-permissions'
+alias cc='claude'
+alias ccr='claude --resume'
+alias ccd='claude --dangerously-skip-permissions'
+alias ccrd='claude --resume --dangerously-skip-permissions'
 
 # Better defaults with modern tools
 alias cat='bat'
