@@ -6,5 +6,5 @@ windows:
       panes:
         - nvim
         - # empty terminal
-        - claude --resume
+        - ccdc
       layout: main-horizontal
