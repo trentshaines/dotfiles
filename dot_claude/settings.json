@@ -8,5 +8,17 @@
   },
   "plugins": [
     "claude-autocomplete-plugin"
-  ]
+  ],
+  "hooks": {
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "~/.claude/hooks/notify-complete.sh"
+          }
+        ]
+      }
+    ]
+  }
 }
