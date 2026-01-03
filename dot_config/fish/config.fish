@@ -49,7 +49,9 @@ alias clauded='claude --dangerously-skip-permissions'
 alias cc='claude'
 alias ccr='claude --resume'
 alias ccd='claude --dangerously-skip-permissions'
+alias ccdc='claude --dangerously-skip-permissions --chrome'
 alias ccrd='claude --resume --dangerously-skip-permissions'
+alias ccrdc='claude --resume --dangerously-skip-permissions --chrome'
 
 # Better defaults with modern tools
 alias cat='bat'
