@@ -80,7 +80,6 @@
         state: present
 
     - name: Install brew casks
-      become: yes
       homebrew_cask:
         name:
           - nikitabobko/tap/aerospace
