@@ -82,14 +82,14 @@
     - name: Install brew casks
       homebrew_cask:
         name:
-          - nikitabobko/tap/aerospace
           - raycast
           - obsidian
           - alacritty
-          - karabiner-elements
-          - espanso
           - font-hack-nerd-font
         state: present
+
+    # These casks require manual install (they prompt for sudo/accessibility):
+    # brew install --cask nikitabobko/tap/aerospace karabiner-elements espanso
 
     - name: Install Oh My Zsh
       shell: |
