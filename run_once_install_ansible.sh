@@ -13,8 +13,8 @@ then
     brew install ansible
 fi
 
-# Run the Ansible playbook
-ansible-playbook ~/.local/share/chezmoi/ansible/playbooks/packages.yml
+# Run the Ansible playbook (with -K to prompt for sudo password)
+ansible-playbook -K ~/.local/share/chezmoi/ansible/playbooks/packages.yml
 
 echo "Ansible installation complete."
 
