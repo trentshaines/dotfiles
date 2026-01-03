@@ -91,7 +91,6 @@
           - espanso
           - font-hack-nerd-font
         state: present
-        sudo_password: "{{ ansible_become_password }}"
 
     - name: Install Oh My Zsh
       shell: |
