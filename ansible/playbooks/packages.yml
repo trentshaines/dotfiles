@@ -47,6 +47,8 @@
           # Python
           - python@3.13
           - poetry
+          - pyenv
+          - pyenv-virtualenv
 
           # Node
           - node
@@ -68,6 +70,7 @@
           - jq
           - tree
           - coreutils
+          - xh
 
           # Security
           - gnupg
@@ -111,6 +114,12 @@
         name: "{{ ansible_env.USER }}"
         shell: /opt/homebrew/bin/fish
       when: ansible_facts['os_family'] == 'Darwin'
+
+    - name: Install Fisher (fish plugin manager)
+      shell: |
+        /opt/homebrew/bin/fish -c "curl -sL https://raw.githubusercontent.com/jorgebucaran/fisher/main/functions/fisher.fish | source && fisher install jorgebucaran/fisher"
+      args:
+        creates: "{{ ansible_env.HOME }}/.config/fish/functions/fisher.fish"
 
     - name: Install TPM (Tmux Plugin Manager)
       git:
