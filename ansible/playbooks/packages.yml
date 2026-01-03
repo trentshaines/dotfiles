@@ -19,7 +19,6 @@
           - felixkratz/formulae
           - kyu08/tap
           - nikitabobko/tap
-          - homebrew/cask-fonts
         state: present
 
     - name: Install brew formulae
