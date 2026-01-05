@@ -1,18 +1,40 @@
 #!/bin/bash
 
-# Capture tmux context at hook time
-SESSION=$(tmux display-message -p '#{session_name}')
-WINDOW=$(tmux display-message -p '#{window_index}')
-PANE=$TMUX_PANE
+TMUX_BIN="/opt/homebrew/bin/tmux"
+QUEUE_FILE="/tmp/claude-notifications.queue"
+
+# $TMUX_PANE is the pane ID where this hook was triggered
+PANE_ID="$TMUX_PANE"
+
+# Check if user is already looking at this pane
+ACTIVE_PANE=$($TMUX_BIN display-message -p '#{pane_id}')
+ALREADY_FOCUSED=false
+[[ "$ACTIVE_PANE" == "$PANE_ID" ]] && ALREADY_FOCUSED=true
+
+# Capture tmux context from Claude's pane (not the focused pane)
+CLIENT=$($TMUX_BIN display-message -t "$PANE_ID" -p '#{client_tty}')
+SESSION=$($TMUX_BIN display-message -t "$PANE_ID" -p '#{session_name}')
+WINDOW=$($TMUX_BIN display-message -t "$PANE_ID" -p '#{window_index}')
+WINDOW_NAME=$($TMUX_BIN display-message -t "$PANE_ID" -p '#{window_name}')
+PANE_INDEX=$($TMUX_BIN display-message -t "$PANE_ID" -p '#{pane_index}')
 PROJECT=$(basename "$PWD")
+TIMESTAMP=$(date +%s)
 
-# Build the switch command
-SWITCH_CMD="osascript -e 'activate application \"Alacritty\"' && tmux switch-client -t '$SESSION' && tmux select-window -t '$SESSION:$WINDOW' && tmux select-pane -t '$PANE'"
+# Full target: session:window.pane
+TARGET="$SESSION:$WINDOW.$PANE_INDEX"
 
-# Send notification
-terminal-notifier \
-  -title "Claude Code" \
-  -subtitle "$PROJECT" \
-  -message "Task completed" \
-  -sound Glass \
-  -execute "$SWITCH_CMD"
+# Remove old entry for same target using awk (more reliable than grep with tabs)
+if [[ -f "$QUEUE_FILE" ]]; then
+    awk -F'\t' -v target="$TARGET" '$2 != target' "$QUEUE_FILE" > "$QUEUE_FILE.tmp" && mv "$QUEUE_FILE.tmp" "$QUEUE_FILE"
+fi
+
+# Add new entry: TIMESTAMP TARGET CLIENT PROJECT SESSION WINDOW_NAME PANE_INDEX LAST_VISITED(0=never)
+echo -e "$TIMESTAMP\t$TARGET\t$CLIENT\t$PROJECT\t$SESSION\t$WINDOW_NAME\t$PANE_INDEX\t0" >> "$QUEUE_FILE"
+
+# Send notification only if user isn't already looking at this pane
+if [[ "$ALREADY_FOCUSED" == "false" ]]; then
+  terminal-notifier \
+    -title "Claude Code" \
+    -subtitle "$PROJECT" \
+    -message "$SESSION → $WINDOW_NAME (pane $PANE_INDEX)"
+fi

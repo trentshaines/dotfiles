@@ -87,6 +87,7 @@
           - obsidian
           - alacritty
           - font-hack-nerd-font
+          - docker
         state: present
 
     # These casks require manual install (they prompt for sudo/accessibility):
