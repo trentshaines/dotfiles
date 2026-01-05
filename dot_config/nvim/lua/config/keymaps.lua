@@ -8,6 +8,10 @@ local map = vim.keymap.set
 map("n", "<leader>o", "<C-o>", { desc = "Jump back" })
 map("n", "<leader>i", "<C-i>", { desc = "Jump forward" })
 
+-- H/L for beginning/end of line
+map({ "n", "v", "o" }, "H", "^", { desc = "Beginning of line" })
+map({ "n", "v", "o" }, "L", "$", { desc = "End of line" })
+
 -- Buffer navigation with number keys (1-9)
 for i = 1, 9 do
   map("n", "<leader>" .. i, function()
