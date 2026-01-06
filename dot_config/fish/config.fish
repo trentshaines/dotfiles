@@ -149,8 +149,8 @@ end
 
 set -Ux PYENV_ROOT $HOME/.pyenv
 fish_add_path $PYENV_ROOT/bin
-pyenv init - | source
-pyenv virtualenv-init - | source
+pyenv init - fish | source
+pyenv virtualenv-init - fish | source
 
 if [ -f '/Users/trent/Downloads/google-cloud-sdk/path.fish.inc' ]
     . '/Users/trent/Downloads/google-cloud-sdk/path.fish.inc'

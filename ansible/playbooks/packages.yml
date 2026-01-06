@@ -71,7 +71,6 @@
           - tree
           - coreutils
           - xh
-          - terminal-notifier
 
           # Security
           - gnupg
