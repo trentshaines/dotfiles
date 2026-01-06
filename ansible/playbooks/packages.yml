@@ -129,11 +129,11 @@
         dest: "{{ ansible_env.HOME }}/.tmux/plugins/tpm"
         update: no
 
-    - name: Install Claude Code globally via npm
-      npm:
-        name: "@anthropic-ai/claude-code"
-        global: yes
-        state: present
+    - name: Install Claude Code via native installer
+      shell: |
+        curl -fsSL https://raw.githubusercontent.com/anthropics/claude-code/main/install.sh | sh
+      args:
+        creates: "{{ ansible_env.HOME }}/.local/bin/claude"
 
     - name: Ensure pipx is ensured (creates ~/.local/bin)
       command: pipx ensurepath
