@@ -48,6 +48,7 @@
           - poetry
           - pyenv
           - pyenv-virtualenv
+          - pipx
 
           # Node
           - node
@@ -133,3 +134,13 @@
         name: "@anthropic-ai/claude-code"
         global: yes
         state: present
+
+    - name: Ensure pipx is ensured (creates ~/.local/bin)
+      command: pipx ensurepath
+      args:
+        creates: "{{ ansible_env.HOME }}/.local/bin/pipx"
+
+    - name: Install autowt via pipx
+      command: pipx install autowt
+      args:
+        creates: "{{ ansible_env.HOME }}/.local/bin/autowt"
