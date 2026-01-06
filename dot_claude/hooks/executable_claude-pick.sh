@@ -10,55 +10,43 @@ if [[ ! -f "$QUEUE_FILE" ]] || [[ ! -s "$QUEUE_FILE" ]]; then
     exit 0
 fi
 
-export QUEUE_FILE TMUX_BIN
-
-# Script to format entries (called by fzf reload)
+# Helper script to format entries - will be called by fzf reload
 format_entries() {
     local now=$(date +%s)
 
-    format_time() {
-        local ts=$1
-        if [[ $ts -eq 0 ]]; then
-            echo "never"
-            return
-        fi
-        local ago=$(( (now - ts) / 60 ))
-        if [[ $ago -lt 1 ]]; then
-            echo "just now"
-        elif [[ $ago -lt 60 ]]; then
-            echo "${ago}m ago"
-        else
-            local hours=$(( ago / 60 ))
-            echo "${hours}h ago"
-        fi
-    }
-
     # Only show unvisited items, sorted by oldest first (longest ignored)
-    awk -F'\t' '$8 == 0' "$QUEUE_FILE" | sort -t$'\t' -k1,1n | \
-    while IFS=$'\t' read -r ts target client project session window_name pane_index last_visited; do
-        finished=$(format_time "$ts")
-        echo -e "$target\t$client\t$project: $session → $window_name (pane $pane_index) | done: $finished"
-    done
+    awk -F'\t' -v now="$now" '$8 == 0 {
+        ts = $1
+        target = $2
+        client = $3
+        project = $4
+        session = $5
+        window_name = $6
+        pane_index = $7
+
+        # Calculate time ago
+        ago_mins = int((now - ts) / 60)
+        if (ago_mins < 1) {
+            finished = "just now"
+        } else if (ago_mins < 60) {
+            finished = ago_mins "m ago"
+        } else {
+            hours = int(ago_mins / 60)
+            finished = hours "h ago"
+        }
+
+        printf "%s\t%s\t%s: %s → %s (pane %s) | done: %s\n", target, client, project, session, window_name, pane_index, finished
+    }' "$QUEUE_FILE" | sort -t$'\t' -k1,1n
 }
 
-export -f format_entries
-
-# Action scripts for fzf bindings
-mark_visited() {
-    local target="$1"
-    local now=$(date +%s)
-    awk -F'\t' -v target="$target" -v now="$now" 'BEGIN{OFS="\t"} {
-        if ($2 == target) { $8 = now }
-        print
-    }' "$QUEUE_FILE" > "$QUEUE_FILE.tmp" && mv "$QUEUE_FILE.tmp" "$QUEUE_FILE"
-}
-
+# Delete entry (pop from queue)
 delete_entry() {
     local target="$1"
     awk -F'\t' -v target="$target" '$2 != target' "$QUEUE_FILE" > "$QUEUE_FILE.tmp" && mv "$QUEUE_FILE.tmp" "$QUEUE_FILE"
 }
 
-export -f mark_visited delete_entry
+# Create wrapper script for fzf reload (to avoid "command not found" errors)
+RELOAD_CMD="bash -c 'now=\$(date +%s); awk -F'\''\\t'\'' -v now=\"\$now\" '\''\$8 == 0 { ts = \$1; target = \$2; client = \$3; project = \$4; session = \$5; window_name = \$6; pane_index = \$7; ago_mins = int((now - ts) / 60); if (ago_mins < 1) { finished = \"just now\" } else if (ago_mins < 60) { finished = ago_mins \"m ago\" } else { hours = int(ago_mins / 60); finished = hours \"h ago\" }; printf \"%s\\t%s\\t%s: %s → %s (pane %s) | done: %s\\n\", target, client, project, session, window_name, pane_index, finished }'\'' \"$QUEUE_FILE\" | sort -t$'\''\\t'\'' -k1,1n'"
 
 # Run fzf with reload bindings
 SELECTION=$(format_entries | fzf-tmux -p 70%,50% \
@@ -67,9 +55,8 @@ SELECTION=$(format_entries | fzf-tmux -p 70%,50% \
     --prompt="Claude > " \
     --reverse \
     --border-label ' Claude Notifications ' \
-    --header 'enter: switch | ctrl-v: dismiss | ctrl-d: delete forever' \
-    --bind "ctrl-v:execute-silent(mark_visited {1})+reload(format_entries)" \
-    --bind "ctrl-d:execute-silent(delete_entry {1})+reload(format_entries)" \
+    --header 'enter: switch | ctrl-d: dismiss (pop from queue)' \
+    --bind "ctrl-d:execute-silent(awk -F'\t' -v target={1} '\$2 != target' \"$QUEUE_FILE\" > \"$QUEUE_FILE.tmp\" && mv \"$QUEUE_FILE.tmp\" \"$QUEUE_FILE\")+reload($RELOAD_CMD)" \
 )
 
 if [[ -n "$SELECTION" ]]; then

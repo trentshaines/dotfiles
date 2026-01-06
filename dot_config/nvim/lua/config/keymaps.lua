@@ -40,3 +40,23 @@ map("v", "<leader>Cr", ":PrtRewrite<cr>", { desc = "AI Rewrite" })
 map("v", "<leader>Cc", ":PrtComplete<cr>", { desc = "AI Complete" })
 map("v", "<leader>Ci", ":PrtImplement<cr>", { desc = "AI Implement" })
 map("n", "<leader>Cm", "<cmd>PrtModel<cr>", { desc = "AI Model Select" })
+
+-- Copy file path and content to clipboard
+map("n", "<leader>yp", function()
+  local path = vim.fn.expand("%")
+  vim.fn.setreg("+", path)
+  vim.notify('Copied relative path: ' .. path, vim.log.levels.INFO)
+end, { desc = "Copy relative file path" })
+
+map("n", "<leader>yP", function()
+  local path = vim.fn.expand("%:p")
+  vim.fn.setreg("+", path)
+  vim.notify('Copied absolute path: ' .. path, vim.log.levels.INFO)
+end, { desc = "Copy absolute file path" })
+
+map("n", "<leader>yf", function()
+  local lines = vim.api.nvim_buf_get_lines(0, 0, -1, false)
+  local content = table.concat(lines, "\n")
+  vim.fn.setreg("+", content)
+  vim.notify('Copied file content (' .. #lines .. ' lines)', vim.log.levels.INFO)
+end, { desc = "Copy file content" })
