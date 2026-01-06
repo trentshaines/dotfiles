@@ -8,6 +8,10 @@ local map = vim.keymap.set
 map("n", "<leader>o", "<C-o>", { desc = "Jump back" })
 map("n", "<leader>i", "<C-i>", { desc = "Jump forward" })
 
+-- Scroll by 5 lines (Shift + Ctrl + e/y)
+map("n", "<C-S-e>", "5<C-e>", { desc = "Scroll down 5 lines" })
+map("n", "<C-S-y>", "5<C-y>", { desc = "Scroll up 5 lines" })
+
 -- H/L for beginning/end of line
 map({ "n", "v", "o" }, "H", "^", { desc = "Beginning of line" })
 map({ "n", "v", "o" }, "L", "$", { desc = "End of line" })
