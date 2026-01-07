@@ -33,6 +33,8 @@ echo -e "$TIMESTAMP\t$TARGET\t$CLIENT\t$PROJECT\t$SESSION\t$WINDOW_NAME\t$PANE_I
 
 # Send notification only if user isn't already looking at this pane
 if [[ "$ALREADY_FOCUSED" == "false" ]]; then
-  # Use osascript - more reliable than terminal-notifier from subprocess contexts
-  osascript -e "display notification \"$SESSION → $WINDOW_NAME (pane $PANE_INDEX)\" with title \"Claude Code\" subtitle \"$PROJECT\"" 2>/dev/null || true
+  terminal-notifier \
+    -title "Claude Code" \
+    -subtitle "$PROJECT" \
+    -message "$SESSION → $WINDOW_NAME (pane $PANE_INDEX)" 2>/dev/null || true
 fi
