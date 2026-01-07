@@ -4,3 +4,4 @@
 .apikeys
 .envrc
 .claude/settings.local.json
+.autowt.toml

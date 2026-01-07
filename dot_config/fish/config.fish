@@ -104,6 +104,7 @@ alias python='python3'
 alias pip='pip3'
 alias cvenv='python3 -m venv .venv'
 alias svenv='source .venv/bin/activate'
+alias ur='uv run'
 
 # Other
 alias proxyemr='ssh -N -D 18080 tick'
@@ -147,10 +148,10 @@ if command -v tmux &>/dev/null; and not set -q TMUX
     tmux has-session -t home 2>/dev/null; or tmux new-session -d -s home -c ~
 end
 
-set -Ux PYENV_ROOT $HOME/.pyenv
+# Pyenv - just shims in PATH (direnv handles virtualenv activation)
+set -gx PYENV_ROOT $HOME/.pyenv
+fish_add_path $PYENV_ROOT/shims
 fish_add_path $PYENV_ROOT/bin
-pyenv init - fish | source
-pyenv virtualenv-init - fish | source
 
 if [ -f '/Users/trent/Downloads/google-cloud-sdk/path.fish.inc' ]
     . '/Users/trent/Downloads/google-cloud-sdk/path.fish.inc'
