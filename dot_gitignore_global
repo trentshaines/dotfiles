@@ -5,3 +5,4 @@
 .envrc
 .claude/settings.local.json
 .autowt.toml
+.basedpyright/baseline.json

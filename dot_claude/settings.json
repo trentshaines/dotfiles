@@ -1,14 +1,4 @@
 {
-  "enabledPlugins": {
-    "claude-autocomplete-optimizer@local-dev": false
-  },
-  "sandbox": {
-    "enabled": true,
-    "autoAllowBashIfSandboxed": true
-  },
-  "plugins": [
-    "claude-autocomplete-plugin"
-  ],
   "hooks": {
     "Stop": [
       {
@@ -20,5 +10,16 @@
         ]
       }
     ]
-  }
+  },
+  "enabledPlugins": {
+    "claude-autocomplete-optimizer@local-dev": false
+  },
+  "sandbox": {
+    "enabled": true,
+    "autoAllowBashIfSandboxed": true
+  },
+  "plugins": [
+    "claude-autocomplete-plugin"
+  ],
+  "model": "claude-opus-4-5@20251101"
 }

@@ -8,8 +8,7 @@ TARGET="$1"
 CLIENT="$2"
 NOW=$(date +%s)
 
-# Activate Alacritty and switch tmux
-osascript -e 'activate application "Alacritty"'
+# Switch tmux (skip Alacritty activation - already focused from picker)
 $TMUX_BIN switch-client -c "$CLIENT" -t "$TARGET"
 
 # Update last_visited timestamp for this target (field 8)
