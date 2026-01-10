@@ -30,3 +30,7 @@ nmap <Space>. kmzj:completeTask<CR>ddGp`z
 set clipboard=unnamed
 imap jk <Esc>
 imap jj <Esc>
+
+" H and L for start/end of line
+nmap H ^
+nmap L $
