@@ -125,6 +125,9 @@ end
 
 # Change cursor shape for different vi modes
 set -g fish_cursor_default block
+
+# Autosuggestion color (dim gray to distinguish from typed text)
+set -g fish_color_autosuggestion 888
 set -g fish_cursor_insert line
 set -g fish_cursor_replace_one underscore
 set -g fish_cursor_visual block

@@ -6,3 +6,4 @@ bin/
 README.md
 .tmux/plugins/
 .tmux/resurrect/
+Library/Application Support/espanso/match/local.yml

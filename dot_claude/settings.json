@@ -1,4 +1,5 @@
 {
+  "model": "claude-opus-4-5@20251101",
   "hooks": {
     "Stop": [
       {
@@ -12,7 +13,9 @@
     ]
   },
   "enabledPlugins": {
-    "claude-autocomplete-optimizer@local-dev": false
+    "claude-autocomplete-optimizer@local-dev": false,
+    "context7@claude-plugins-official": true,
+    "ralph-loop@claude-plugins-official": true
   },
   "sandbox": {
     "enabled": true,
@@ -20,6 +23,5 @@
   },
   "plugins": [
     "claude-autocomplete-plugin"
-  ],
-  "model": "claude-opus-4-5@20251101"
+  ]
 }
