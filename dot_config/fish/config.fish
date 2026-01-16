@@ -108,6 +108,7 @@ alias ur='uv run'
 
 # Other
 alias proxyemr='ssh -N -D 18080 tick'
+alias mm='ssh -L 3000:localhost:3000 -L 8000:localhost:8000 trenthaines@100.77.152.106'
 alias uf='fzf-bookmark-opener'
 alias fkill='ps -ax | fzf | awk \'{print $1}\' | xargs kill'
 
