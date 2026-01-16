@@ -64,3 +64,7 @@ map("n", "<leader>yf", function()
   vim.fn.setreg("+", content)
   vim.notify('Copied file content (' .. #lines .. ' lines)', vim.log.levels.INFO)
 end, { desc = "Copy file content" })
+
+-- File save/quit
+map("n", "<leader>fs", "<cmd>w<cr>", { desc = "File save" })
+map("n", "<leader>fq", "<cmd>wq<cr>", { desc = "File save and quit" })
