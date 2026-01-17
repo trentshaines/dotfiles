@@ -1,0 +1,9 @@
+[terminal]
+mode = "inplace"
+
+[cleanup]
+default_mode = "interactive"
+
+[scripts.custom.linear]
+description = "Create a worktree from Linear ticket ID or URL"
+branch_name = "echo $1 | grep -oiE 'TECH-[0-9]+' | head -1 | tr '[:lower:]' '[:upper:]' | xargs linearis issues read | jq -r '.branchName // empty' | sed 's|^[^/]*/||'"
