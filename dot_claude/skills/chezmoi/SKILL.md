@@ -1,6 +1,6 @@
 ---
 name: chezmoi
-description: Help with chezmoi dotfile management, ansible playbooks, and syncing configs to the dotfiles repository. Use when modifying configuration files in ~/.config, ~/, ansible playbooks, or other managed locations. ALWAYS prompt the user about syncing to chezmoi after making config changes.
+description: Help with chezmoi dotfile management, ansible playbooks, and syncing configs to the dotfiles repository. Use when modifying configuration files in ~/.config, ~/, ansible playbooks, or other managed locations. ALWAYS prompt the user about syncing to chezmoi after making config changes. Please use this anytime I mention configuration for my computer
 ---
 
 # Chezmoi Dotfile Management Skill
@@ -22,6 +22,7 @@ Chezmoi manages dotfiles and system configuration, syncing them to a Git reposit
 Important files tracked by chezmoi (in source directory):
 
 ### Dotfiles
+
 - `dot_zshrc` → `~/.zshrc`
 - `dot_tmux.conf` → `~/.tmux.conf`
 - `dot_gitconfig` → `~/.gitconfig`
@@ -31,6 +32,7 @@ Important files tracked by chezmoi (in source directory):
 - `dot_aerospace.toml` → `~/.aerospace.toml`
 
 ### Directories
+
 - `dot_config/` → `~/.config/` (includes tmuxinator, gh, etc.)
 - `dot_claude/` → `~/.claude/` (skills, settings, etc.)
 - `dot_cursor/` → `~/.cursor/`
@@ -57,6 +59,7 @@ capply    # chezmoi apply (apply changes from source to home)
 - `chezmoi re-add <directory>` - Update directory AND pick up new files within it
 
 **How to know which to use:**
+
 ```bash
 chezmoi managed | grep filename   # If it shows up → use re-add
                                   # If it doesn't → use add
@@ -83,6 +86,7 @@ chezmoi re-add    # Re-add everything that changed
 ```
 
 **When to use this:**
+
 - After making multiple config changes across different files
 - When you're unsure what you modified
 - To catch any manual edits you forgot about
@@ -97,6 +101,7 @@ git diff                          # Review the actual changes
 ```
 
 **Why this matters:**
+
 - You might have accidentally modified a managed file
 - Ensures you don't commit unwanted changes
 - Helps you write accurate commit messages
@@ -155,6 +160,7 @@ cd -
 **Key insight:** For `~/.claude/skills/` and `~/.config/tmuxinator/`, just use `re-add` on the directory - it picks up new AND modified files!
 
 **Even simpler alternative (when unsure):**
+
 ```bash
 # Just work directly in the chezmoi source!
 cd ~/.local/share/chezmoi
@@ -172,6 +178,7 @@ This avoids confusion about add vs re-add since git will show you exactly what c
 When Claude (or the user) modifies a config file like `~/.zshrc`, `~/.config/tmuxinator/admin.yml`, or any other managed file:
 
 ### Step 1: Sync the file to chezmoi source
+
 ```bash
 # For NEW files (not yet managed):
 chezmoi add ~/.config/tmuxinator/config.yml
@@ -182,6 +189,7 @@ chezmoi re-add ~/.config/tmuxinator/admin.yml
 ```
 
 ### Step 2: Check for unexpected changes and commit
+
 ```bash
 cd ~/.local/share/chezmoi
 git status  # ⚠️ ALWAYS check what files changed
@@ -193,6 +201,7 @@ cd -
 ```
 
 **⚠️ IMPORTANT:** Always run `git status` before committing to catch:
+
 - Unintended modifications to managed files
 - Leftover test/debug changes
 - Files you modified but forgot about
@@ -203,12 +212,14 @@ cd -
 
 1. ✅ **Inform the user** that changes were made to a managed file
 2. ✅ **Prompt the user** if they want to sync to chezmoi:
+
    ```
    I've updated ~/.zshrc. Would you like me to sync this to your dotfiles repo?
    This involves:
    1. chezmoi re-add ~/.zshrc
    2. Commit and push to github.com/trentshaines/dotfiles
    ```
+
 3. ✅ **Offer global re-add option** when appropriate:
    - If multiple files were changed, or
    - If there might be other uncommitted changes, or
@@ -224,10 +235,12 @@ cd -
 4. ⚠️ **Wait for user confirmation** before running chezmoi commands
 5. ✅ If user confirms, execute the re-add and git workflow
 6. ⚠️ **ALWAYS check git status** before committing:
+
    ```bash
    cd ~/.local/share/chezmoi
    git status  # Show user what files changed
    ```
+
    - If unexpected files appear, inform the user
    - Ask if they want to review changes with `git diff`
    - Only proceed with commit if changes look correct
@@ -235,6 +248,7 @@ cd -
 ### Example Prompt Template
 
 After modifying a config file:
+
 ```
 Updated: ~/.config/tmuxinator/admin.yml
 
@@ -267,12 +281,15 @@ chezmoi managed | grep tmux       # Find tmux-related managed files
 ## Ansible Playbooks
 
 ### Overview
+
 Ansible playbooks in `~/ansible/` define system package installation and configuration. These are managed by chezmoi and synced to the dotfiles repo.
 
 ### Location
+
 - `~/ansible/playbooks/packages.yml` - Main package installation playbook
 
 ### What It Installs
+
 - **Homebrew** packages (formulae and casks)
 - **Homebrew taps** (custom repositories)
 - **Oh My Zsh** (if not already installed)
@@ -280,12 +297,14 @@ Ansible playbooks in `~/ansible/` define system package installation and configu
 - **npm global packages** (like Claude Code)
 
 ### Running the Playbook
+
 ```bash
 cd ~/ansible
 ansible-playbook playbooks/packages.yml
 ```
 
 ### After Modifying Ansible Playbooks
+
 ```bash
 # Option 1: Re-add ansible directory
 chezmoi re-add ~/ansible/
@@ -302,6 +321,7 @@ cd -
 ```
 
 ### Common Ansible Modifications
+
 1. **Adding new brew packages**: Add to `name:` list under `Install brew formulae`
 2. **Adding new casks**: Add to `name:` list under `Install brew casks`
 3. **Adding new taps**: Add to `name:` list under `Add brew taps`
@@ -310,6 +330,7 @@ cd -
 ## Common Scenarios
 
 ### 1. Modified an existing dotfile (e.g., .zshrc)
+
 ```bash
 chezmoi re-add ~/.zshrc           # Re-add existing managed file
 cd ~/.local/share/chezmoi
@@ -320,6 +341,7 @@ cd -
 ```
 
 ### 2. Created NEW tmuxinator template
+
 ```bash
 # EASY: Just re-add the directory (it's already managed!)
 chezmoi re-add ~/.config/tmuxinator/
@@ -331,6 +353,7 @@ cd -
 ```
 
 ### 3. Created NEW Claude skill
+
 ```bash
 # EASY: Just re-add the directory (it's already managed!)
 chezmoi re-add ~/.claude/skills/
@@ -343,6 +366,7 @@ cd -
 ```
 
 ### 4. Modified multiple existing config files
+
 ```bash
 chezmoi re-add                    # Re-add all changed managed files
 cd ~/.local/share/chezmoi
@@ -354,6 +378,7 @@ cd -
 ```
 
 ### 5. Mixed: new skills + modified configs (EASIEST)
+
 ```bash
 # Re-add managed directories (picks up new AND modified files)
 chezmoi re-add ~/.claude/skills/
@@ -372,6 +397,7 @@ cd -
 ```
 
 ### 6. Modified ansible playbook
+
 ```bash
 chezmoi re-add ~/ansible/playbooks/packages.yml
 cd ~/.local/share/chezmoi
@@ -382,6 +408,7 @@ cd -
 ```
 
 ### 7. Want to see what changed
+
 ```bash
 chezmoi diff                      # See what would change
 cd ~/.local/share/chezmoi && git status  # See what's uncommitted
@@ -390,6 +417,7 @@ cd ~/.local/share/chezmoi && git status  # See what's uncommitted
 ## Files NOT Managed by Chezmoi
 
 Some config files are NOT tracked (check `.chezmoiignore`):
+
 - Temporary files
 - Cache directories
 - Machine-specific configs (if marked)
@@ -406,11 +434,13 @@ Some config files are NOT tracked (check `.chezmoiignore`):
 ## Troubleshooting
 
 ### File not syncing?
+
 - Check if it's managed: `chezmoi managed | grep filename`
 - Check `.chezmoiignore` for exclusions
 - Ensure you used `chezmoi re-add` after editing
 
 ### Conflicts between source and home?
+
 ```bash
 chezmoi diff        # See differences
 chezmoi apply -v    # Apply with verbose output
@@ -418,6 +448,7 @@ chezmoi re-add      # Or re-add to update source
 ```
 
 ### Lost changes?
+
 - Source of truth is in `~/.local/share/chezmoi/`
 - Git history: `chezmoi cd && git log`
 - Can recover from Git history if needed
