@@ -35,6 +35,8 @@ function wt-setup --description "Set up a new git worktree with envrc and depend
     if not test -d frontend/node_modules
         echo "📦 Installing frontend dependencies..."
         cd frontend; and yarn install; and cd ..
+        # Yarn sometimes modifies package.json formatting, restore it
+        git checkout frontend/package.json 2>/dev/null; or true
         echo "✅ Frontend dependencies installed"
     else
         echo "⏭️  frontend/node_modules exists, skipping yarn install"

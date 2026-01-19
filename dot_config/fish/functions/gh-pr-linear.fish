@@ -1,4 +1,9 @@
+# Used by Claude Code /implement-pr skill for end-to-end PR workflow
 function gh-pr-linear --description "Create a GitHub PR with Linear ticket info pre-filled"
+    # Parse arguments
+    argparse 'd/description=' 't/testing=' -- $argv
+    or return
+
     # Get current branch name
     set branch (git branch --show-current)
 
@@ -18,14 +23,8 @@ function gh-pr-linear --description "Create a GitHub PR with Linear ticket info 
     # Fetch ticket info from Linear
     set ticket_json (linearis issues read $ticket_id 2>&1)
 
-    if echo $ticket_json | grep -q '"error"'
-        echo "❌ Failed to fetch Linear ticket: $ticket_json"
-        return 1
-    end
-
-    # Extract fields from JSON
-    set title (echo $ticket_json | jq -r '.title // empty')
-    set description (echo $ticket_json | jq -r '.description // empty')
+    # Extract fields from JSON (handle linearis debug output)
+    set title (echo $ticket_json | grep -o '"title": "[^"]*"' | head -1 | cut -d'"' -f4)
     set ticket_url "https://linear.app/decagon/issue/$ticket_id"
 
     if test -z "$title"
@@ -35,6 +34,24 @@ function gh-pr-linear --description "Create a GitHub PR with Linear ticket info 
 
     echo "📝 Title: $title"
 
+    # Use provided description or fall back to Linear description
+    if set -q _flag_description
+        set description $_flag_description
+        echo "📄 Using provided description"
+    else
+        set description (echo $ticket_json | jq -r '.description // empty' 2>/dev/null)
+        if test -z "$description"
+            set description "See Linear ticket for details."
+        end
+    end
+
+    # Use provided testing notes or placeholder
+    if set -q _flag_testing
+        set testing $_flag_testing
+    else
+        set testing "<!-- Describe the testing you've performed. If you have frontend changes, you must include screenshots and/or screen recordings. -->"
+    end
+
     # Build PR body from template
     set pr_body "## Description
 
@@ -42,7 +59,7 @@ $description
 
 ## Testing
 
-<!-- Describe the testing you've performed. If you have frontend changes, you must include screenshots and/or screen recordings. -->
+$testing
 
 ## Linear Ticket
 
