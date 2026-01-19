@@ -5,6 +5,7 @@ This is a **parallel** configuration alongside your existing zsh setup. Your zsh
 ## How to Test Fish
 
 ### 1. Just run `fish` from zsh
+
 ```bash
 fish  # Enter fish shell
 exit  # Return to zsh
@@ -15,6 +16,7 @@ exit  # Return to zsh
 All your key functionality has been ported:
 
 **✅ Working out of the box:**
+
 - Starship prompt
 - Zoxide (z/zi commands)
 - FZF (Ctrl-R, Ctrl-T, Alt-C)
@@ -26,6 +28,7 @@ All your key functionality has been ported:
 - Vi mode keybindings
 
 **✅ NVM Setup Complete:**
+
 - **Fisher**: Plugin manager installed
 - **Bass**: Bash command wrapper installed
 - **nvm.fish**: Fish-native NVM installed
@@ -44,6 +47,7 @@ node --version        # Check Node version
 ```
 
 **Installed via fisher:**
+
 - `jorgebucaran/fisher` - Plugin manager
 - `edc/bass` - Run bash commands in fish
 - `jorgebucaran/nvm.fish` - Fish-native NVM
@@ -79,6 +83,7 @@ cf               # Fuzzy find project → Cursor
 ### 5. Comparing Shells
 
 **Switch between them anytime:**
+
 ```bash
 # In zsh:
 fish
@@ -104,13 +109,17 @@ chsh -s /bin/zsh
 ## Key Differences You'll Notice
 
 ### Better Autosuggestions
+
 Fish shows command suggestions as you type (in gray). Press → to accept.
 
 ### Better Tab Completion
+
 Tab completion is more intuitive and shows options visually.
 
 ### Different Syntax
+
 If you write custom commands, the syntax is different:
+
 - `if test` instead of `if [ ]`
 - `set` instead of `export`
 - No `source <(cmd)`, use `cmd | source`
@@ -131,6 +140,7 @@ If you write custom commands, the syntax is different:
 ## Reverting
 
 To go back to zsh permanently:
+
 1. `chsh -s /bin/zsh`
 2. Optionally delete `~/.config/fish/` if you want
 

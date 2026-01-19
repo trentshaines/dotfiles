@@ -45,6 +45,10 @@ map("v", "<leader>Cc", ":PrtComplete<cr>", { desc = "AI Complete" })
 map("v", "<leader>Ci", ":PrtImplement<cr>", { desc = "AI Implement" })
 map("n", "<leader>Cm", "<cmd>PrtModel<cr>", { desc = "AI Model Select" })
 
+-- Yank to system clipboard
+map("v", "<leader>yy", '"+y', { desc = "Yank selection to clipboard" })
+map("n", "<leader>yy", '"+yy', { desc = "Yank line to clipboard" })
+
 -- Copy file path and content to clipboard
 map("n", "<leader>yp", function()
   local path = vim.fn.expand("%")
@@ -66,5 +70,6 @@ map("n", "<leader>yf", function()
 end, { desc = "Copy file content" })
 
 -- File save/quit
-map("n", "<leader>fs", "<cmd>w<cr>", { desc = "File save" })
-map("n", "<leader>fq", "<cmd>wq<cr>", { desc = "File save and quit" })
+map("n", "<leader>fw", "<cmd>w<cr>", { desc = "File write" })
+map("n", "<leader>fs", "<cmd>wq<cr>", { desc = "File save and quit" })
+map("n", "<leader>fq", "<cmd>q<cr>", { desc = "File quit" })
