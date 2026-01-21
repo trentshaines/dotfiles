@@ -25,7 +25,7 @@ function gh-pr-linear --description "Create a GitHub PR with Linear ticket info 
 
     # Extract fields from JSON (handle linearis debug output)
     set title (echo $ticket_json | grep -o '"title": "[^"]*"' | head -1 | cut -d'"' -f4)
-    set ticket_url "https://linear.app/decagon/issue/$ticket_id"
+    set ticket_url "https://linear.app/decagon/issue/"(echo $ticket_id | tr '[:upper:]' '[:lower:]')
 
     if test -z "$title"
         echo "❌ Could not parse ticket title"

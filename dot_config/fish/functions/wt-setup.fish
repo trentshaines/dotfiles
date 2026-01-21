@@ -32,6 +32,13 @@ function wt-setup --description "Set up a new git worktree with envrc and depend
         echo "⚠️  No .mcp.json found in main repo"
     end
 
+    if test -d "$MAIN_REPO/.claude/skills"
+        echo "📋 Copying .claude/skills/..."
+        mkdir -p .claude
+        cp -r "$MAIN_REPO/.claude/skills" .claude/
+        echo "✅ Copied .claude/skills/"
+    end
+
     if not test -d frontend/node_modules
         echo "📦 Installing frontend dependencies..."
         cd frontend; and yarn install; and cd ..
