@@ -3,7 +3,7 @@
 
 TMUX_BIN="/opt/homebrew/bin/tmux"
 QUEUE_FILE="/tmp/claude-notifications.queue"
-SWITCH_SCRIPT="$HOME/.claude/hooks/claude-switch.sh"
+SWITCH_SCRIPT="$HOME/.claude/scripts/claude-switch.sh"
 
 if [[ ! -f "$QUEUE_FILE" ]] || [[ ! -s "$QUEUE_FILE" ]]; then
     $TMUX_BIN display-message "No pending Claude notifications"
@@ -14,7 +14,7 @@ fi
 format_entries() {
     local now=$(date +%s)
 
-    # Only show unvisited items, sorted by oldest first (longest ignored)
+    # Only show unvisited items, sorted by most recent first
     awk -F'\t' -v now="$now" '$8 == 0 {
         ts = $1
         target = $2
@@ -35,8 +35,8 @@ format_entries() {
             finished = hours "h ago"
         }
 
-        printf "%s\t%s\t%s: %s → %s (pane %s) | done: %s\n", target, client, project, session, window_name, pane_index, finished
-    }' "$QUEUE_FILE" | sort -t$'\t' -k1,1n
+        printf "%s\t%s\t%s\t%s: %s → %s (pane %s) | done: %s\n", ts, target, client, project, session, window_name, pane_index, finished
+    }' "$QUEUE_FILE" | sort -t$'\t' -k1,1rn | cut -f2-
 }
 
 # Delete entry (pop from queue)
@@ -46,18 +46,19 @@ delete_entry() {
 }
 
 # Create wrapper script for fzf reload (to avoid "command not found" errors)
-RELOAD_CMD="bash -c 'now=\$(date +%s); awk -F'\''\\t'\'' -v now=\"\$now\" '\''\$8 == 0 { ts = \$1; target = \$2; client = \$3; project = \$4; session = \$5; window_name = \$6; pane_index = \$7; ago_mins = int((now - ts) / 60); if (ago_mins < 1) { finished = \"just now\" } else if (ago_mins < 60) { finished = ago_mins \"m ago\" } else { hours = int(ago_mins / 60); finished = hours \"h ago\" }; printf \"%s\\t%s\\t%s: %s → %s (pane %s) | done: %s\\n\", target, client, project, session, window_name, pane_index, finished }'\'' \"$QUEUE_FILE\" | sort -t$'\''\\t'\'' -k1,1n'"
+RELOAD_CMD="bash -c 'now=\$(date +%s); awk -F'\''\\t'\'' -v now=\"\$now\" '\''\$8 == 0 { ts = \$1; target = \$2; client = \$3; project = \$4; session = \$5; window_name = \$6; pane_index = \$7; ago_mins = int((now - ts) / 60); if (ago_mins < 1) { finished = \"just now\" } else if (ago_mins < 60) { finished = ago_mins \"m ago\" } else { hours = int(ago_mins / 60); finished = hours \"h ago\" }; printf \"%s\\t%s\\t%s\\t%s: %s → %s (pane %s) | done: %s\\n\", ts, target, client, project, session, window_name, pane_index, finished }'\'' \"$QUEUE_FILE\" | sort -t$'\''\\t'\'' -k1,1rn | cut -f2-'"
 
 # Run fzf with reload bindings (plain fzf since we're already in a display-popup)
 SELECTION=$(format_entries | fzf \
+    --multi \
     --with-nth=3.. \
     --delimiter=$'\t' \
     --prompt="Claude > " \
     --reverse \
     --border=rounded \
     --border-label ' Claude Notifications ' \
-    --header 'enter: switch | ctrl-d: dismiss (pop from queue)' \
-    --bind "ctrl-d:execute-silent(awk -F'\t' -v target={1} '\$2 != target' \"$QUEUE_FILE\" > \"$QUEUE_FILE.tmp\" && mv \"$QUEUE_FILE.tmp\" \"$QUEUE_FILE\")+reload($RELOAD_CMD)" \
+    --header 'tab: select | enter: switch | ctrl-d: dismiss selected' \
+    --bind "ctrl-d:execute-silent($HOME/.claude/scripts/claude-delete.sh {+1})+reload($RELOAD_CMD)+deselect-all" \
 )
 
 if [[ -n "$SELECTION" ]]; then

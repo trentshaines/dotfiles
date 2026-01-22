@@ -6,9 +6,16 @@
       "Bash(tmux split-window:*)",
       "Bash(tmux send-keys:*)",
       "Bash(linearis:*)",
-      "mcp__Linear__*",
+      "mcp__Linear__get*",
+      "mcp__Linear__list*",
+      "mcp__Linear__search*",
       "mcp__postgres-prod-readonly__*",
       "mcp__sentry__*"
+    ],
+    "deny": [
+      "mcp__Linear__create*",
+      "mcp__Linear__update*",
+      "mcp__Linear__delete*"
     ]
   },
   "hooks": {
@@ -31,5 +38,6 @@
   "sandbox": {
     "enabled": true,
     "autoAllowBashIfSandboxed": true
-  }
+  },
+  "model": "claude-opus-4-5@20251101"
 }
