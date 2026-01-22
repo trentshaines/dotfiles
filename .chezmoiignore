@@ -10,3 +10,4 @@ Library/Application Support/espanso/match/local.yml
 .claude/skills/local-server/
 .claude/skills/local-server-prod/
 .claude/MACHINE.md
+.claude.json

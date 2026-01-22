@@ -1,4 +1,12 @@
 {
+  "includeCoAuthoredBy": false,
+  "permissions": {
+    "allow": [
+      "Read(~/.config/**)",
+      "Bash(tmux split-window:*)",
+      "Bash(tmux send-keys:*)"
+    ]
+  },
   "hooks": {
     "Stop": [
       {

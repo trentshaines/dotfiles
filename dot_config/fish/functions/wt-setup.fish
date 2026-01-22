@@ -39,6 +39,13 @@ function wt-setup --description "Set up a new git worktree with envrc and depend
         echo "✅ Copied .claude/skills/"
     end
 
+    if test -f "$MAIN_REPO/.claude/settings.local.json"
+        echo "📋 Copying .claude/settings.local.json..."
+        mkdir -p .claude
+        cp "$MAIN_REPO/.claude/settings.local.json" .claude/settings.local.json
+        echo "✅ Copied .claude/settings.local.json"
+    end
+
     if not test -d frontend/node_modules
         echo "📦 Installing frontend dependencies..."
         cd frontend; and yarn install; and cd ..
