@@ -2,20 +2,20 @@
   "includeCoAuthoredBy": false,
   "permissions": {
     "allow": [
-      "Read(~/.config/**)",
+      "Read",
+      "Edit",
+      "Write",
       "Bash(tmux split-window:*)",
       "Bash(tmux send-keys:*)",
-      "Bash(linearis:*)",
-      "mcp__Linear__get*",
-      "mcp__Linear__list*",
-      "mcp__Linear__search*",
-      "mcp__postgres-prod-readonly__*",
-      "mcp__sentry__*"
+      "Bash(linearis:*)"
     ],
     "deny": [
-      "mcp__Linear__create*",
-      "mcp__Linear__update*",
-      "mcp__Linear__delete*"
+      "Read(**/.env)",
+      "Read(**/.env.*)",
+      "Edit(**/.env)",
+      "Edit(**/.env.*)",
+      "Write(**/.env)",
+      "Write(**/.env.*)"
     ]
   },
   "hooks": {
