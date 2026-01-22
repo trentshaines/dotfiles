@@ -4,7 +4,11 @@
     "allow": [
       "Read(~/.config/**)",
       "Bash(tmux split-window:*)",
-      "Bash(tmux send-keys:*)"
+      "Bash(tmux send-keys:*)",
+      "Bash(linearis:*)",
+      "mcp__Linear__*",
+      "mcp__postgres-prod-readonly__*",
+      "mcp__sentry__*"
     ]
   },
   "hooks": {
@@ -27,8 +31,5 @@
   "sandbox": {
     "enabled": true,
     "autoAllowBashIfSandboxed": true
-  },
-  "plugins": [
-    "claude-autocomplete-plugin"
-  ]
+  }
 }
