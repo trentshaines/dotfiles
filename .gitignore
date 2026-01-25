@@ -1,1 +1,7 @@
 .autowt.toml
+
+# Project-specific Claude skills (not shared across machines)
+dot_claude/skills/implement-decagon-pr/
+dot_claude/skills/local-server/
+dot_claude/skills/local-server-prod/
+dot_claude/skills/local-voice-server-prod/
