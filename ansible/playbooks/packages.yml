@@ -49,6 +49,9 @@
           - pyenv
           - pyenv-virtualenv
           - pipx
+          - ruff
+          - uv
+          - direnv
 
           # Node
           - node
@@ -71,6 +74,9 @@
           - tree
           - coreutils
           - xh
+          - mosh
+          - ngrok
+          - hyperfine
 
           # Security
           - gnupg
