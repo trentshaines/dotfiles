@@ -1,3 +1,3 @@
 function awt --description "autowt with auto-confirm"
-    autowt -y $argv
+    autowt $argv -y
 end
