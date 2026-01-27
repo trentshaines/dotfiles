@@ -11,5 +11,6 @@ Library/Application Support/espanso/match/local.yml
 .claude/skills/local-server-prod/
 .claude/skills/local-voice-server-prod/
 .claude/skills/implement-decagon-pr/
+.claude/skills/basedpyright/
 .claude/MACHINE.md
 .claude.json
