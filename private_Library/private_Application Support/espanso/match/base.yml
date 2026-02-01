@@ -3,14 +3,35 @@
 # For a complete introduction, visit the official docs at: https://espanso.org/docs/
 
 matches:
+  # === Personal Info ===
+  - trigger: ":fn"
+    replace: "Trent"
+  - trigger: ":ln"
+    replace: "Haines"
+  - trigger: ":name"
+    replace: "Trent Haines"
   - trigger: ":mail"
     replace: "trentshaines@gmail.com"
   - trigger: ":dmail"
     replace: "trent.haines@decagon.ai"
   - trigger: ":num"
     replace: "469-929-0757"
+  - trigger: ":bday"
+    replace: "11/28/2001"
 
+  # === Address ===
+  - trigger: ":addr"
+    replace: "325 Berry St APT 109, San Francisco, CA 94158"
+  - trigger: ":street"
+    replace: "325 Berry St APT 109"
+  - trigger: ":city"
+    replace: "San Francisco"
+  - trigger: ":zip"
+    replace: "94158"
+  - trigger: ":csz"
+    replace: "San Francisco, CA 94158"
 
+  # === Dates & Times ===
   - trigger: ":date"
     replace: "{{mydate}}"
     vars:
@@ -19,11 +40,26 @@ matches:
         params:
           format: "%m/%d/%Y"
 
-  # Print the output of a shell command
-  - trigger: ":shell"
-    replace: "{{output}}"
+  - trigger: ":isodate"
+    replace: "{{mydate}}"
     vars:
-      - name: output
-        type: shell
+      - name: mydate
+        type: date
         params:
-          cmd: "echo 'Hello from your shell'"
+          format: "%Y-%m-%d"
+
+  - trigger: ":time"
+    replace: "{{mytime}}"
+    vars:
+      - name: mytime
+        type: date
+        params:
+          format: "%H:%M"
+
+  - trigger: ":now"
+    replace: "{{now}}"
+    vars:
+      - name: now
+        type: date
+        params:
+          format: "%Y-%m-%d %H:%M"
