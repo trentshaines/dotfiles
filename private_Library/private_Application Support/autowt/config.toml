@@ -7,7 +7,8 @@ default_mode = "interactive"
 [scripts.custom.linear]
 description = "Create a worktree from Linear ticket ID or URL"
 # Matches any prefix like TECH-123, BEAN-456, ABC-789, etc.
-branch_name = "echo $1 | grep -oiE '[A-Z]+-[0-9]+' | head -1 | tr '[:lower:]' '[:upper:]' | xargs linearis issues read | jq -r '.branchName // empty' | sed 's|^[^/]*/||'"
+# Extracts branchName from linearis debug output (workaround for linearis transform bug)
+branch_name = "echo $1 | grep -oiE '[A-Z]+-[0-9]+' | head -1 | tr '[:lower:]' '[:upper:]' | xargs -I{} sh -c 'linearis issues read {} 2>&1' | grep -o '\"branchName\": \"[^\"]*\"' | cut -d'\"' -f4 | sed 's|^[^/]*/||'"
 
 [scripts.custom.sentry]
 description = "Create a worktree from Sentry issue ID"
