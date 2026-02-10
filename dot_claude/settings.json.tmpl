@@ -42,7 +42,11 @@
   },
   "sandbox": {
     "enabled": true,
+{{- if eq .chezmoi.hostname "trent-decagon" }}
+    "autoAllowBashIfSandboxed": false
+{{- else }}
     "autoAllowBashIfSandboxed": true
+{{- end }}
   },
   "model": "claude-opus-4-5@20251101"
 }
