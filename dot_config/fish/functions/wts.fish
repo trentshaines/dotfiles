@@ -16,8 +16,14 @@ function wts --description "Fuzzy switch between branches (creates worktree if n
             gsub(/^[[:space:]]+|[[:space:]]+$/, "", branch)
             if (branch in wt) {
                 print "✓ " branch " -> " wt[branch]
+                delete wt[branch]
             } else {
                 print "  " branch
+            }
+        }
+        END {
+            for (branch in wt) {
+                print "✓ " branch " -> " wt[branch]
             }
         }
     ' | sort -u)
@@ -29,7 +35,7 @@ function wts --description "Fuzzy switch between branches (creates worktree if n
 
     # fzf select
     set -l selected (printf '%s\n' $entries \
-        | fzf --preview 'branch=$(echo {} | sed "s/^[✓ ]* //;s/ -> .*//"); git log --oneline --graph -n 10 origin/$branch 2>/dev/null || echo "No commits"' \
+        | fzf --preview 'branch=$(echo {} | sed "s/^[✓ ]* //;s/ -> .*//"); git log --oneline --graph -n 10 origin/$branch 2>/dev/null || git log --oneline --graph -n 10 $branch 2>/dev/null || echo "No commits"' \
               --preview-window=right:50% \
               --header '✓ = has worktree | Select branch')
 
