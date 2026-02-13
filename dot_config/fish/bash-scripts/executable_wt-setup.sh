@@ -49,13 +49,11 @@ if [ -f "$MAIN_REPO/.claude/settings.local.json" ]; then
 fi
 
 if [ ! -d frontend/node_modules ]; then
-    echo "📦 Installing frontend dependencies..."
-    cd frontend && yarn install && cd ..
-    # Yarn sometimes modifies package.json formatting, restore it
-    git checkout frontend/package.json 2>/dev/null || true
-    echo "✅ Frontend dependencies installed"
+    echo "📦 Symlinking frontend/node_modules from main repo..."
+    ln -s "$MAIN_REPO/frontend/node_modules" frontend/node_modules
+    echo "✅ Symlinked frontend/node_modules"
 else
-    echo "⏭️  frontend/node_modules exists, skipping yarn install"
+    echo "⏭️  frontend/node_modules exists, skipping"
 fi
 
 echo "🔒 Setting skip-worktree for baseline.json..."
