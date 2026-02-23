@@ -28,6 +28,7 @@
           - neovim
           - tmux
           - git
+          - git-delta
           - gh
           - lazygit
 

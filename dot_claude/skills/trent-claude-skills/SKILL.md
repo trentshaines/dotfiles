@@ -1,5 +1,5 @@
 ---
-name: claude-skills
+name: trent-claude-skills
 description: Help with creating and managing Claude Code skills. Use when the user asks about creating skills, skill structure, or customizing Claude Code behavior.
 ---
 

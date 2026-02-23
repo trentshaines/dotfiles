@@ -1,5 +1,5 @@
 ---
-name: fish
+name: trent-fish
 description: Help with fish shell configuration, aliases, functions, and keybindings. Use when the user asks about shell config, aliases, or when modifying shell behavior. IMPORTANT - Trent uses fish as his primary shell, not zsh.
 ---
 

@@ -1,5 +1,5 @@
 ---
-name: config
+name: trent-config
 description: Overview of Trent's development environment and dotfiles setup. Use this skill first to understand the overall setup, then reference specific skills for details. CRITICAL - Trent uses fish shell, NOT zsh.
 ---
 
@@ -9,14 +9,14 @@ description: Overview of Trent's development environment and dotfiles setup. Use
 
 | Tool | Purpose | Skill | Config Location |
 |------|---------|-------|-----------------|
-| **fish** | Shell (PRIMARY) | `fish` | `~/.config/fish/config.fish` |
-| **chezmoi** | Dotfile management | `chezmoi` | `~/.local/share/chezmoi/` |
-| **tmux** | Terminal multiplexer | `tmux` | `~/.tmux.conf` |
-| **sesh** | Tmux session switcher | `tmux` | - |
-| **tmuxinator** | Tmux session templates | `tmux` | `~/.config/tmuxinator/*.yml` |
-| **lazyvim** | Neovim distribution | `lazyvim` | `~/.config/nvim/` |
-| **aerospace** | Window manager | `aerospace` | `~/.config/aerospace/aerospace.toml` |
-| **obsidian** | Notes/Zettelkasten | `obsidian` | `~/Documents/obsidian-vault/` |
+| **fish** | Shell (PRIMARY) | `trent-fish` | `~/.config/fish/config.fish` |
+| **chezmoi** | Dotfile management | `trent-chezmoi` | `~/.local/share/chezmoi/` |
+| **tmux** | Terminal multiplexer | `trent-tmux` | `~/.tmux.conf` |
+| **sesh** | Tmux session switcher | `trent-tmux` | - |
+| **tmuxinator** | Tmux session templates | `trent-tmux` | `~/.config/tmuxinator/*.yml` |
+| **lazyvim** | Neovim distribution | `trent-lazyvim` | `~/.config/nvim/` |
+| **aerospace** | Window manager | `trent-aerospace` | `~/.config/aerospace/aerospace.toml` |
+| **obsidian** | Notes/Zettelkasten | `trent-obsidian` | `~/Documents/obsidian-vault/` |
 | **starship** | Prompt | - | `~/.config/starship.toml` |
 
 ## Critical Facts
@@ -82,7 +82,7 @@ mm                        # SSH to Mac Mini with port forwards
 
 ## When Editing Configs
 
-1. Use the appropriate skill for detailed help (fish, tmux, lazyvim, etc.)
+1. Use the appropriate skill for detailed help (trent-fish, trent-tmux, trent-lazyvim, etc.)
 2. Remember to sync to chezmoi after changes
 3. Fish syntax differs from bash/zsh:
    - `set -gx VAR value` not `export VAR=value`
@@ -91,10 +91,10 @@ mm                        # SSH to Mac Mini with port forwards
 
 ## Skills Index
 
-- **fish** - Shell config, aliases, functions, vi mode
-- **tmux** - Sessions, tmuxinator templates, sesh, window layouts
-- **chezmoi** - Dotfile management, syncing, ansible playbooks
-- **lazyvim** - Neovim config, plugins, LSP, keybindings
-- **aerospace** - Window management, workspaces, tiling
-- **obsidian** - Zettelkasten notes, vault search
-- **claude-skills** - Creating and managing skills
+- **trent-fish** - Shell config, aliases, functions, vi mode
+- **trent-tmux** - Sessions, tmuxinator templates, sesh, window layouts
+- **trent-chezmoi** - Dotfile management, syncing, ansible playbooks
+- **trent-lazyvim** - Neovim config, plugins, LSP, keybindings
+- **trent-aerospace** - Window management, workspaces, tiling
+- **trent-obsidian** - Zettelkasten notes, vault search
+- **trent-claude-skills** - Creating and managing skills

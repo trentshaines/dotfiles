@@ -1,5 +1,5 @@
 ---
-name: aerospace
+name: trent-aerospace
 description: Help with AeroSpace window manager configuration, keybindings, and workspace management. Use when the user asks about AeroSpace, window management, workspaces, or tiling configurations.
 ---
 

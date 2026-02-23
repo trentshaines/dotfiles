@@ -1,5 +1,5 @@
 ---
-name: obsidian
+name: trent-obsidian
 description: Help with Obsidian Zettelkasten vault management - search, create, and organize notes in the user's personal knowledge base with 993+ notes. Use when the user asks about their Zettelkasten, vault, notes, or knowledge management. (project, gitignored)
 ---
 

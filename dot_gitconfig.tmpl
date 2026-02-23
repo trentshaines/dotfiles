@@ -20,6 +20,20 @@
 [core]
 	autocrlf = input
 	excludesfile = /Users/trent/.gitignore_global
+	pager = delta
+[interactive]
+	diffFilter = delta --color-only
+[delta]
+	navigate = true
+	side-by-side = true
+	line-numbers = true
+[merge]
+	tool = nvimdiff
+	conflictstyle = diff3
+[mergetool]
+	keepBackup = false
+[mergetool "nvimdiff"]
+	cmd = nvim -d "$LOCAL" "$MERGED" "$REMOTE"
 [credential "https://dev.azure.com"]
 	useHttpPath = true
 [credential "https://github.rbx.com"]

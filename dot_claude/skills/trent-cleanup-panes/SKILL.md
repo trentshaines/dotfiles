@@ -1,5 +1,5 @@
 ---
-name: cleanup-panes
+name: trent-cleanup-panes
 description: Clean up tmux panes. Use when user wants to close/kill all other panes, clean up tmux window, or reset pane layout.
 ---
 

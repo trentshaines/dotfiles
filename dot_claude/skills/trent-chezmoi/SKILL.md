@@ -1,5 +1,5 @@
 ---
-name: chezmoi
+name: trent-chezmoi
 description: Help with chezmoi dotfile management, ansible playbooks, and syncing configs to the dotfiles repository. Use when modifying configuration files in ~/.config, ~/, ansible playbooks, or other managed locations. ALWAYS prompt the user about syncing to chezmoi after making config changes. Please use this anytime I mention configuration for my computer
 ---
 

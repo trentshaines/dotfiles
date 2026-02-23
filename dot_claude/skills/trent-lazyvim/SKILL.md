@@ -1,5 +1,5 @@
 ---
-name: lazyvim
+name: trent-lazyvim
 description: Help with LazyVim configuration, plugins, keybindings, and Neovim setup. Use when the user asks about LazyVim, Neovim configuration, plugins, or text editor customization.
 ---
 

@@ -1,5 +1,5 @@
 ---
-name: tmux
+name: trent-tmux
 description: Help with tmux, tmuxinator, and sesh session management. Use when the user asks about tmux sessions, tmuxinator templates, session switching, or terminal multiplexing.
 ---
 

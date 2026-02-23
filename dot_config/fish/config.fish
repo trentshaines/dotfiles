@@ -126,6 +126,9 @@ end
 # Change cursor shape for different vi modes
 set -g fish_cursor_default block
 
+# Load event-driven functions (--on-variable won't auto-register via autoload)
+__update_tmux_window_name 2>/dev/null
+
 # Autosuggestion color (dim gray to distinguish from typed text)
 set -g fish_color_autosuggestion 888
 set -g fish_cursor_insert line
