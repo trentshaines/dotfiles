@@ -17,7 +17,7 @@ Deploy the local development server pointing to the production environment by ru
    ```
 4. In the second split pane, run the frontend with prod env:
    ```bash
-   cd frontend && DECAGON_ENV=prod yarn run dev
+   cd frontend && DECAGON_ENV=prod yarn run dev --webpack
    ```
 
 ## Tmux Commands
@@ -35,7 +35,7 @@ tmux send-keys -t "$BACKEND_PANE" 'DECAGON_ENV=prod uv pip install -r backend/re
 FRONTEND_PANE=$(tmux split-window -v -t "$BACKEND_PANE" -P -F '#{pane_id}')
 
 # Run frontend in the new pane using its ID
-tmux send-keys -t "$FRONTEND_PANE" 'cd frontend && DECAGON_ENV=prod yarn run dev' Enter
+tmux send-keys -t "$FRONTEND_PANE" 'cd frontend && DECAGON_ENV=prod yarn run dev --webpack' Enter
 ```
 
 ## Expected Result

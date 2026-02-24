@@ -17,7 +17,7 @@ Deploy the local voice development server with ngrok tunnel for outbound calling
 2. Get URL: `curl -s http://localhost:4040/api/tunnels | jq -r '.tunnels[0].public_url'`
 3. Voice server: `DECAGON_ENV=prod VOICE_OUTBOUND_BASE_URL=<ngrok-url> uvicorn backend.server_cs.voice_server:app --reload --port 8080`
 4. Backend: `DECAGON_ENV=prod uvicorn backend.server_cs.server:app --reload --port 8000`
-5. Frontend: `cd frontend && DECAGON_ENV=prod yarn run dev`
+5. Frontend: `cd frontend && DECAGON_ENV=prod yarn run dev --webpack`
 
 ## Full Script (Automated 2x2 Layout)
 
@@ -74,7 +74,7 @@ tmux send-keys -t "$VOICE_PANE" "env DECAGON_ENV=prod VOICE_OUTBOUND_BASE_URL=$N
 tmux send-keys -t "$BACKEND_PANE" 'env DECAGON_ENV=prod uvicorn backend.server_cs.server:app --reload --port 8000' Enter
 
 # 10. Start frontend - use 'env' for fish shell compatibility
-tmux send-keys -t "$FRONTEND_PANE" 'cd frontend && env DECAGON_ENV=prod yarn run dev' Enter
+tmux send-keys -t "$FRONTEND_PANE" 'cd frontend && env DECAGON_ENV=prod yarn run dev --webpack' Enter
 
 echo "Voice development environment started!"
 echo "ngrok URL: $NGROK_URL"

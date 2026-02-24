@@ -17,7 +17,7 @@ Deploy the local development server by running both backend and frontend in sepa
    ```
 4. In the second split pane, run the frontend:
    ```bash
-   cd frontend && yarn run dev
+   cd frontend && yarn run dev --webpack
    ```
 
 ## Tmux Commands
@@ -35,7 +35,7 @@ tmux send-keys -t "$BACKEND_PANE" 'uv pip install -r backend/requirements.in && 
 FRONTEND_PANE=$(tmux split-window -v -t "$BACKEND_PANE" -P -F '#{pane_id}')
 
 # Run frontend in the new pane using its ID
-tmux send-keys -t "$FRONTEND_PANE" 'cd frontend && yarn run dev' Enter
+tmux send-keys -t "$FRONTEND_PANE" 'cd frontend && yarn run dev --webpack' Enter
 ```
 
 ## Expected Result
