@@ -46,15 +46,15 @@ function wts --description "Fuzzy switch between branches (creates worktree if n
         return 0
     end
 
-    # Check if it has a worktree (starts with ✓)
-    if string match -q "+*" -- $selected
-        # Extract path and cd
-        set -l path (echo $selected | sed 's/.* -> //')
+    # Check if it has a worktree (starts with +)
+    if string match -q "+*" -- "$selected"
+        # Extract path after " -> "
+        set -l path (string replace -r '.* -> ' '' -- "$selected")
         cd "$path"
         echo "Switched to: $path"
     else
         # No worktree - create one with awt
-        set -l branch (echo $selected | sed 's/^  //')
+        set -l branch (string trim -- "$selected")
         echo "Creating worktree for: $branch"
         awt $branch
     end
