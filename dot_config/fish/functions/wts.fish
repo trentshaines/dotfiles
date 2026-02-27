@@ -25,7 +25,7 @@ function wts --description "Fuzzy switch between branches (creates worktree if n
             end
         end
         if test -n "$path"
-            set -a entries "✓ $branch -> $path"
+            set -a entries "+ $branch -> $path"
         else
             set -a entries "  $branch"
         end
@@ -38,16 +38,16 @@ function wts --description "Fuzzy switch between branches (creates worktree if n
 
     # fzf select
     set -l selected (printf '%s\n' $entries \
-        | fzf --preview 'branch=$(echo {} | sed "s/^[✓ ]* //;s/ -> .*//"); git log --oneline --graph -n 10 $branch 2>/dev/null || echo "No commits"' \
+        | fzf --preview 'branch=$(echo {} | sed "s/^[+ ] //;s/ -> .*//"); git log --oneline --graph -n 10 $branch 2>/dev/null || echo "No commits"' \
               --preview-window=right:50% \
-              --header '✓ = has worktree | Select branch')
+              --header '+ = has worktree | Select branch')
 
     if test -z "$selected"
         return 0
     end
 
     # Check if it has a worktree (starts with ✓)
-    if string match -q "✓*" -- $selected
+    if string match -q "+*" -- $selected
         # Extract path and cd
         set -l path (echo $selected | sed 's/.* -> //')
         cd "$path"
