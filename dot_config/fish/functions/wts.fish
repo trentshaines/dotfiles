@@ -38,7 +38,7 @@ function wts --description "Fuzzy switch between branches (creates worktree if n
 
     # fzf select
     set -l selected (printf '%s\n' $entries \
-        | fzf --preview 'branch=$(echo {} | sed "s/^[+ ] //;s/ -> .*//"); git log --oneline --graph -n 10 $branch 2>/dev/null || echo "No commits"' \
+        | fzf --preview 'bash -c '\''branch=$(echo {} | sed "s/^[+ ] //;s/ -> .*//"); git log --oneline --graph -n 10 "$branch" 2>/dev/null || echo "No commits"'\''' \
               --preview-window=right:50% \
               --header '+ = has worktree | Select branch')
 
