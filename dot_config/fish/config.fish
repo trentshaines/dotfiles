@@ -162,8 +162,3 @@ fish_add_path $PYENV_ROOT/bin
 if [ -f '/Users/trent/Downloads/google-cloud-sdk/path.fish.inc' ]
     . '/Users/trent/Downloads/google-cloud-sdk/path.fish.inc'
 end
-
-# Claude Code (conditional on DECAGON env var)
-if test "$DECAGON" = true
-    bass source ~/git/duet/claude_code.env
-end

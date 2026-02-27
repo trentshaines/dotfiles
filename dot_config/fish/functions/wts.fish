@@ -3,30 +3,33 @@ function wts --description "Fuzzy switch between branches (creates worktree if n
     # Prune stale worktree entries
     git worktree prune 2>/dev/null
 
-    # Use awk to efficiently join branches with worktrees
-    set -l entries (begin
-        # First output worktree branches with paths
-        git worktree list 2>/dev/null | awk '{gsub(/\[|\]/, "", $3); print $3 "\t" $1}'
-        # Then output all remote branches
-        git branch -r 2>/dev/null | grep -v HEAD | sed 's/.*origin\///'
-    end | awk -F'\t' '
-        NF == 2 { wt[$1] = $2; next }
-        {
-            branch = $1
-            gsub(/^[[:space:]]+|[[:space:]]+$/, "", branch)
-            if (branch in wt) {
-                print "✓ " branch " -> " wt[branch]
-                delete wt[branch]
-            } else {
-                print "  " branch
-            }
-        }
-        END {
-            for (branch in wt) {
-                print "✓ " branch " -> " wt[branch]
-            }
-        }
-    ' | sort -u)
+    # Build worktree lookup: wt_branches[i] -> wt_paths[i]
+    set -l wt_branches
+    set -l wt_paths
+    for line in (git worktree list 2>/dev/null | awk '{gsub(/\[|\]/, "", $3); print $3 "\t" $1}')
+        set -a wt_branches (echo $line | cut -f1)
+        set -a wt_paths (echo $line | cut -f2)
+    end
+
+    # Local branches sorted by most recent commit
+    set -l branches (git for-each-ref --sort=-committerdate --format='%(refname:short)' refs/heads/ 2>/dev/null)
+
+    # Annotate branches with worktree paths
+    set -l entries
+    for branch in $branches
+        set -l path ""
+        for i in (seq (count $wt_branches))
+            if test "$wt_branches[$i]" = "$branch"
+                set path $wt_paths[$i]
+                break
+            end
+        end
+        if test -n "$path"
+            set -a entries "✓ $branch -> $path"
+        else
+            set -a entries "  $branch"
+        end
+    end
 
     if test -z "$entries"
         echo "No branches found (not in a git repo?)"
@@ -35,7 +38,7 @@ function wts --description "Fuzzy switch between branches (creates worktree if n
 
     # fzf select
     set -l selected (printf '%s\n' $entries \
-        | fzf --preview 'branch=$(echo {} | sed "s/^[✓ ]* //;s/ -> .*//"); git log --oneline --graph -n 10 origin/$branch 2>/dev/null || git log --oneline --graph -n 10 $branch 2>/dev/null || echo "No commits"' \
+        | fzf --preview 'branch=$(echo {} | sed "s/^[✓ ]* //;s/ -> .*//"); git log --oneline --graph -n 10 $branch 2>/dev/null || echo "No commits"' \
               --preview-window=right:50% \
               --header '✓ = has worktree | Select branch')
 
