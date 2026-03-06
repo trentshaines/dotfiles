@@ -29,6 +29,30 @@
           {
             "type": "command",
             "command": "~/.claude/hooks/notify-complete.sh"
+          },
+          {
+            "type": "command",
+            "command": "~/.claude/hooks/daily-log.sh"
+          }
+        ]
+      }
+    ],
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "~/.claude/hooks/daily-log.sh"
+          }
+        ]
+      }
+    ],
+    "Notification": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "~/.claude/hooks/notify-complete.sh"
           }
         ]
       }
@@ -47,5 +71,5 @@
     "autoAllowBashIfSandboxed": true
 {{- end }}
   },
-  "model": "claude-opus-4-5@20251101"
+  "model": "claude-opus-4-6[1m]"
 }
