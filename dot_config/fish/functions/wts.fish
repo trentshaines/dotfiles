@@ -7,8 +7,8 @@ function wts --description "Fuzzy switch between branches (creates worktree if n
     set -l wt_branches
     set -l wt_paths
     for line in (git worktree list 2>/dev/null | awk '{gsub(/\[|\]/, "", $3); print $3 "\t" $1}')
-        set -a wt_branches (echo $line | cut -f1)
-        set -a wt_paths (echo $line | cut -f2)
+        set -a wt_branches (string split \t -- $line)[1]
+        set -a wt_paths (string split \t -- $line)[2]
     end
 
     # Local branches sorted by most recent commit
@@ -31,14 +31,14 @@ function wts --description "Fuzzy switch between branches (creates worktree if n
         end
     end
 
-    if test -z "$entries"
+    if test (count $entries) -eq 0
         echo "No branches found (not in a git repo?)"
         return 1
     end
 
-    # fzf select
+    # fzf select - preview script is bash to avoid fish quoting issues
     set -l selected (printf '%s\n' $entries \
-        | fzf --preview 'bash -c '\''branch=$(echo {} | sed "s/^[+ ] //;s/ -> .*//"); git log --oneline --graph -n 10 "$branch" 2>/dev/null || echo "No commits"'\''' \
+        | fzf --preview '~/bin/wts-preview.sh {}' \
               --preview-window=right:50% \
               --header '+ = has worktree | Select branch')
 
@@ -48,12 +48,10 @@ function wts --description "Fuzzy switch between branches (creates worktree if n
 
     # Check if it has a worktree (starts with +)
     if string match -q "+*" -- "$selected"
-        # Extract path after " -> "
         set -l path (string replace -r '.* -> ' '' -- "$selected")
         cd "$path"
         echo "Switched to: $path"
     else
-        # No worktree - create one with awt
         set -l branch (string trim -- "$selected")
         echo "Creating worktree for: $branch"
         awt $branch
