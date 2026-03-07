@@ -64,11 +64,6 @@
     "pyright-lsp@claude-plugins-official": true
   },
   "sandbox": {
-{{- if eq .chezmoi.hostname "trent-decagon" }}
     "enabled": false
-{{- else }}
-    "enabled": true,
-    "autoAllowBashIfSandboxed": true
-{{- end }}
   }
 }
