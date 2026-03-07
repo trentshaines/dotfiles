@@ -64,6 +64,12 @@
     "pyright-lsp@claude-plugins-official": true
   },
   "sandbox": {
-    "enabled": false
+    "enabled": true,
+    "autoAllowBashIfSandboxed": true,
+    "network": {
+      "allowedHosts": [
+        "github.com"
+      ]
+    }
   }
 }
