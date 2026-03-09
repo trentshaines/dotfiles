@@ -70,6 +70,22 @@
       "allowedHosts": [
         "github.com"
       ]
+    },
+    "filesystem": {
+      "allowWrite": [
+        "/tmp",
+        "{{ .chezmoi.homeDir }}/duet",
+        "{{ .chezmoi.homeDir }}/duet-worktrees",
+        "{{ .chezmoi.homeDir }}/git/duet",
+        "{{ .chezmoi.homeDir }}/git/duet-worktrees",
+        "{{ .chezmoi.homeDir }}/code/duet",
+        "{{ .chezmoi.homeDir }}/code/duet-worktrees",
+        "{{ .chezmoi.homeDir }}/dev/duet",
+        "{{ .chezmoi.homeDir }}/dev/duet-worktrees",
+        "{{ .chezmoi.homeDir }}/projects/duet",
+        "{{ .chezmoi.homeDir }}/projects/duet-worktrees",
+        "{{ .chezmoi.homeDir }}/.claude-worktrees"
+      ]
     }
   }
 }
