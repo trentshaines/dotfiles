@@ -73,3 +73,41 @@ end, { desc = "Copy file content" })
 map("n", "<leader>fw", "<cmd>w<cr>", { desc = "File write" })
 map("n", "<leader>fs", "<cmd>wq<cr>", { desc = "File save and quit" })
 map("n", "<leader>fq", "<cmd>q<cr>", { desc = "File quit" })
+
+-- Open GitHub PR for the current line's blame commit
+map("n", "<leader>gP", function()
+  local line = vim.fn.line(".")
+  local file = vim.fn.expand("%")
+  local sha = vim.fn.system(
+    string.format("git blame -L %d,%d --porcelain %s 2>/dev/null | head -1 | awk '{print $1}'", line, line, vim.fn.shellescape(file))
+  ):gsub("%s+", "")
+  if sha == "" or sha:match("^0+$") then
+    vim.notify("Line not committed yet", vim.log.levels.WARN)
+    return
+  end
+  vim.notify("Looking up PR for " .. sha:sub(1, 8) .. "…", vim.log.levels.INFO)
+  vim.fn.jobstart(
+    { "gh", "pr", "list", "--search", sha, "--state", "merged", "--json", "url", "-q", ".[0].url" },
+    {
+      on_stdout = function(_, data)
+        local url = table.concat(data, ""):gsub("%s+", "")
+        vim.schedule(function()
+          if url ~= "" then
+            vim.ui.open(url)
+          else
+            -- Fallback: open the commit itself on GitHub
+            vim.fn.jobstart({ "gh", "browse", "--commit", sha }, {})
+          end
+        end)
+      end,
+      on_stderr = function(_, data)
+        local err = table.concat(data, ""):gsub("%s+", "")
+        if err ~= "" then
+          vim.schedule(function()
+            vim.notify("gh error: " .. err, vim.log.levels.ERROR)
+          end)
+        end
+      end,
+    }
+  )
+end, { desc = "Open GitHub PR for current line" })
