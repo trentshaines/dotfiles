@@ -68,6 +68,9 @@
     "pyright-lsp@claude-plugins-official": true
   },
   "sandbox": {
+{{- if eq .chezmoi.hostname "mbvu1314-2" }}
+    "enabled": false
+{{- else }}
     "enabled": true,
     "autoAllowBashIfSandboxed": true,
     "network": {
@@ -94,5 +97,6 @@
         "{{ .chezmoi.homeDir }}/.claude-worktrees"
       ]
     }
+{{- end }}
   }
 }
