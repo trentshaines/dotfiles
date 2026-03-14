@@ -144,6 +144,11 @@
       args:
         creates: "{{ ansible_env.HOME }}/.local/bin/autowt"
 
+    - name: Install python-lsp-server via pipx
+      command: pipx install python-lsp-server
+      args:
+        creates: "{{ ansible_env.HOME }}/.local/bin/pylsp"
+
     - name: Install global npm packages
       npm:
         name: "{{ item }}"
@@ -151,3 +156,5 @@
         state: present
       loop:
         - pyright
+        - typescript-language-server
+        - typescript
