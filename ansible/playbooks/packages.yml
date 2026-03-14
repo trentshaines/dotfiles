@@ -28,7 +28,6 @@
           - neovim
           - tmux
           - git
-          - git-delta
           - gh
           - lazygit
 
@@ -50,9 +49,6 @@
           - pyenv
           - pyenv-virtualenv
           - pipx
-          - ruff
-          - uv
-          - direnv
 
           # Node
           - node
@@ -75,9 +71,6 @@
           - tree
           - coreutils
           - xh
-          - mosh
-          - ngrok
-          - hyperfine
 
           # Security
           - gnupg
@@ -150,3 +143,11 @@
       command: pipx install autowt
       args:
         creates: "{{ ansible_env.HOME }}/.local/bin/autowt"
+
+    - name: Install global npm packages
+      npm:
+        name: "{{ item }}"
+        global: yes
+        state: present
+      loop:
+        - pyright
