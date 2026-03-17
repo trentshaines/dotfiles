@@ -73,9 +73,15 @@
 {{- else }}
     "enabled": true,
     "autoAllowBashIfSandboxed": true,
+    "enableWeakerNetworkIsolation": true,
     "network": {
       "allowedDomains": [
         "github.com",
+        "api.github.com",
+        "raw.githubusercontent.com",
+        "codeload.github.com",
+        "objects.githubusercontent.com",
+        "avatars.githubusercontent.com",
         "api.linear.app",
         "mcp.linear.app",
         "api.graphite.dev"
@@ -84,6 +90,8 @@
     "filesystem": {
       "allowWrite": [
         "/tmp",
+        "{{ .chezmoi.homeDir }}/.config/chezmoi",
+        "{{ .chezmoi.homeDir }}/.local/share/chezmoi",
         "{{ .chezmoi.homeDir }}/duet",
         "{{ .chezmoi.homeDir }}/duet-worktrees",
         "{{ .chezmoi.homeDir }}/git/duet",
