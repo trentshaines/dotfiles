@@ -89,6 +89,7 @@
           - font-hack-nerd-font
           - docker
         state: present
+      ignore_errors: yes
 
     # These casks require manual install (they prompt for sudo/accessibility):
     # brew install --cask nikitabobko/tap/aerospace karabiner-elements espanso
