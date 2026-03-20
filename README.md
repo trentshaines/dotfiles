@@ -4,6 +4,7 @@ This repo contains the configuration to set up configuration and install program
 This is using [Chezmoi](https://chezmoi.io), the dotfile manager to setup the install, as well as Ansible. 
 
 todo: set up ansible script for macos
+todo: vimium — automate backup/restore of settings (keybindings + custom CSS) via chezmoi
 
 ## How to run
 
