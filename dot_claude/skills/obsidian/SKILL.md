@@ -261,9 +261,9 @@ related:
 6. **Use CLI for link-aware operations** — Backlinks, orphans, properties
 7. **Use file tools for heavy text operations** — Bulk reads, complex regex, content analysis
 
-## Sub-Skills
+## Related Skills
 
-- **[annotator.md](./annotator.md)** — Creating and managing PDF annotations via the Annotator plugin. Auto-load when user asks to annotate, highlight, or comment on a PDF.
+- **obsidian-annotator** — Creating and managing PDF annotations via the Annotator plugin. Loaded when user asks to annotate, highlight, or comment on a PDF.
 
 ## Important Notes
 
