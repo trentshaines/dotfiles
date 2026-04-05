@@ -261,6 +261,10 @@ related:
 6. **Use CLI for link-aware operations** — Backlinks, orphans, properties
 7. **Use file tools for heavy text operations** — Bulk reads, complex regex, content analysis
 
+## Sub-Skills
+
+- **[annotator.md](./annotator.md)** — Creating and managing PDF annotations via the Annotator plugin. Auto-load when user asks to annotate, highlight, or comment on a PDF.
+
 ## Important Notes
 
 - This is the user's **personal knowledge base** — treat with care

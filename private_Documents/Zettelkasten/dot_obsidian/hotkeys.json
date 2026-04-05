@@ -388,5 +388,13 @@
       ],
       "key": "1"
     }
+  ],
+  "obsidian-annotator:toggle-annotation-mode": [
+    {
+      "modifiers": [
+        "Ctrl"
+      ],
+      "key": "R"
+    }
   ]
 }
