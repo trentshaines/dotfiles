@@ -20,6 +20,12 @@ matches:
     replace: "469-929-0757"
   - trigger: ":bday"
     replace: "11/28/2001"
+  - trigger: ":linkedin"
+    replace: "https://www.linkedin.com/in/trentshaines/"
+  - trigger: ":github"
+    replace: "https://github.com/trentshaines"
+  - trigger: ":website"
+    replace: "https://trent-quartz-obsidian.vercel.app/"
 
   # === Address ===
   - trigger: ":addr"

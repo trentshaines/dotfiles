@@ -68,7 +68,7 @@
     "pyright-lsp@claude-plugins-official": true
   },
   "sandbox": {
-{{- if eq .chezmoi.hostname "mbvu1314-2" }}
+{{- if or (eq .chezmoi.hostname "mbvu1314-2") (eq .chezmoi.hostname "Trents-Mac-mini") }}
     "enabled": false
 {{- else }}
     "enabled": true,

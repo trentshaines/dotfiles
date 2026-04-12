@@ -19,6 +19,7 @@
           - felixkratz/formulae
           - kyu08/tap
           - nikitabobko/tap
+          - getsentry/tools
         state: present
 
     - name: Install brew formulae
@@ -78,6 +79,11 @@
           - pass-otp
           - pinentry-mac
 
+          # Beandex server infrastructure
+          - cloudflared
+          - crane
+          - sentry-cli
+
         state: present
 
     - name: Install brew casks
@@ -88,6 +94,7 @@
           - alacritty
           - font-hack-nerd-font
           - docker
+          - tailscale
         state: present
       ignore_errors: yes
 
