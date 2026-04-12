@@ -151,7 +151,7 @@ end
 
 if command -v tmux &>/dev/null; and not set -q TMUX
     # Create a "home" session if it doesn't exist
-    tmux has-session -t home 2>/dev/null; or tmux new-session -d -s home -c ~
+    tmux has-session -t home 2>/dev/null; or tmuxinator start home
 end
 
 # Pyenv - just shims in PATH (direnv handles virtualenv activation)

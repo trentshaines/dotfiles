@@ -65,7 +65,7 @@ run = 'move-node-to-workspace W'
 # E: Claude
 [[on-window-detected]]
 if.app-id = 'com.anthropic.claudefordesktop'
-run = 'move-node-to-workspace Q'
+run = 'move-node-to-workspace E'
 
 
 # A: Browser

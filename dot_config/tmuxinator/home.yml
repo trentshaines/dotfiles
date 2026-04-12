@@ -1,0 +1,7 @@
+name: home
+root: ~
+
+windows:
+  - main:
+      panes:
+        - # shell
