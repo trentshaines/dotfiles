@@ -108,7 +108,7 @@
           sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)" "" --unattended
         fi
       args:
-        creates: "{{ ansible_env.HOME }}/.oh-my-zsh"
+        creates: "{{ ansible_facts['env']['HOME'] }}/.oh-my-zsh"
 
     - name: Add fish to /etc/shells
       become: yes
@@ -121,7 +121,7 @@
     - name: Set fish as default shell
       become: yes
       user:
-        name: "{{ ansible_env.USER }}"
+        name: "{{ ansible_facts['env']['USER'] }}"
         shell: /opt/homebrew/bin/fish
       when: ansible_facts['os_family'] == 'Darwin'
 
@@ -129,34 +129,34 @@
       shell: |
         /opt/homebrew/bin/fish -c "curl -sL https://raw.githubusercontent.com/jorgebucaran/fisher/main/functions/fisher.fish | source && fisher install jorgebucaran/fisher"
       args:
-        creates: "{{ ansible_env.HOME }}/.config/fish/functions/fisher.fish"
+        creates: "{{ ansible_facts['env']['HOME'] }}/.config/fish/functions/fisher.fish"
 
     - name: Install TPM (Tmux Plugin Manager)
       git:
         repo: https://github.com/tmux-plugins/tpm
-        dest: "{{ ansible_env.HOME }}/.tmux/plugins/tpm"
+        dest: "{{ ansible_facts['env']['HOME'] }}/.tmux/plugins/tpm"
         update: no
 
     - name: Install Claude Code via native installer
       shell: |
         curl -fsSL https://raw.githubusercontent.com/anthropics/claude-code/main/install.sh | sh
       args:
-        creates: "{{ ansible_env.HOME }}/.local/bin/claude"
+        creates: "{{ ansible_facts['env']['HOME'] }}/.local/bin/claude"
 
     - name: Ensure pipx is ensured (creates ~/.local/bin)
       command: pipx ensurepath
       args:
-        creates: "{{ ansible_env.HOME }}/.local/bin/pipx"
+        creates: "{{ ansible_facts['env']['HOME'] }}/.local/bin/pipx"
 
     - name: Install autowt via pipx
       command: pipx install autowt
       args:
-        creates: "{{ ansible_env.HOME }}/.local/bin/autowt"
+        creates: "{{ ansible_facts['env']['HOME'] }}/.local/bin/autowt"
 
     - name: Install python-lsp-server via pipx
       command: pipx install python-lsp-server
       args:
-        creates: "{{ ansible_env.HOME }}/.local/bin/pylsp"
+        creates: "{{ ansible_facts['env']['HOME'] }}/.local/bin/pylsp"
 
     - name: Install global npm packages
       npm:

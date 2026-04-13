@@ -2,7 +2,9 @@
 padding.x = 10
 padding.y = 10
 
-# Shell configuration
+[terminal]
+osc52 = "CopyPaste"
+
 [terminal.shell]
 program = "/opt/homebrew/bin/fish"
 args = ["-l"]
@@ -64,6 +66,3 @@ color = '#c53b53'
 key = "S"
 mods = "Control|Shift"
 action = "ToggleViMode"
-
-[terminal]
-osc52 = "CopyPaste"
