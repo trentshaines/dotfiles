@@ -1,7 +1,6 @@
 bin/
 .DS_Store
 .config/nvim/lazy-lock.json
-.config/fish/secrets.fish
 .config/fish/conf.d/local.fish
 README.md
 .tmux/plugins/
