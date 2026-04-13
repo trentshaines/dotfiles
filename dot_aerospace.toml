@@ -84,13 +84,23 @@ run = 'move-node-to-workspace S'
 if.app-id = 'com.hnc.Discord'
 run = 'move-node-to-workspace S' 
 
+# 2: Notion
+[[on-window-detected]]
+if.app-id = 'notion.id'
+run = 'move-node-to-workspace 2'
+
+# 3: Docker / OrbStack
+[[on-window-detected]]
+if.app-id = 'dev.kdrag0n.MacVirt'
+run = 'move-node-to-workspace 3'
+[[on-window-detected]]
+if.app-id = 'com.docker.docker'
+run = 'move-node-to-workspace 3'
+
 # D: Database / Tooling
 [[on-window-detected]]
 if.app-id = 'com.jetbrains.Datagrip'
-run = 'move-node-to-workspace D' 
-[[on-window-detected]]
-if.app-id = 'com.docker.docker'
-run = 'move-node-to-workspace D' 
+run = 'move-node-to-workspace D'
 [[on-window-detected]]
 if.app-id = 'com.azuredatastudio.oss'
 run = 'move-node-to-workspace D' 
