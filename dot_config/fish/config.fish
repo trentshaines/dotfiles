@@ -13,10 +13,6 @@ set -gx PATH "/Applications/Rider.app/Contents/MacOS" $PATH
 set -gx PATH "$HOME/bin" $PATH
 set -gx PASSWORD_STORE_ENABLE_EXTENSIONS true
 
-# Load secrets (API keys, tokens, etc.) - not tracked in dotfiles
-if test -f ~/.config/fish/secrets.fish
-    source ~/.config/fish/secrets.fish
-end
 
 ################################################################################
 # Essential Tools
@@ -162,3 +158,7 @@ fish_add_path $PYENV_ROOT/bin
 if [ -f '/Users/trent/Downloads/google-cloud-sdk/path.fish.inc' ]
     . '/Users/trent/Downloads/google-cloud-sdk/path.fish.inc'
 end
+
+# Added by OrbStack: command-line tools and integration
+# This won't be added again if you remove it.
+source ~/.orbstack/shell/init2.fish 2>/dev/null || :
