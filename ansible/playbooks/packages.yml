@@ -79,6 +79,9 @@
           - pass-otp
           - pinentry-mac
 
+          # Docker
+          - docker
+
           # Beandex server infrastructure
           - cloudflared
           - crane
@@ -93,7 +96,7 @@
           - obsidian
           - alacritty
           - font-hack-nerd-font
-          - docker
+          - orbstack
           - tailscale
           - aerospace
           - karabiner-elements
