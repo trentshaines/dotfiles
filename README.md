@@ -26,10 +26,24 @@ setting default shell).
 
 ### Manual steps after setup
 
-Some casks require interactive install (accessibility permissions, GUI prompts):
+These apps are installed automatically but require permission grants on first launch:
+
+#### [Karabiner-Elements](https://karabiner-elements.pqrs.org/) — keyboard remapping
+
+Open Karabiner-Elements and approve the **System Extension** and **Input Monitoring** prompts in System Settings. The config is managed via chezmoi at `~/.config/karabiner/`.
+
+#### [AeroSpace](https://nikitabobko.github.io/AeroSpace/guide) — tiling window manager
+
+Open AeroSpace and grant **Accessibility** access. Enable it in System Settings → General → Login Items so it starts on boot.
+
+#### [Espanso](https://espanso.org/) — text expander
+
+Grant **Accessibility** access when prompted, then register it as a service:
 
 ```shell
-brew install --cask nikitabobko/tap/aerospace karabiner-elements espanso
+espanso service start
 ```
 
-After installing Obsidian: enable the CLI in Settings → General → Advanced → Command line interface.
+#### [Obsidian](https://obsidian.md/) — note-taking
+
+Enable the CLI in Settings → General → Advanced → Command line interface.
