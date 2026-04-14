@@ -176,3 +176,4 @@
         - typescript-language-server
         - typescript
         - tree-sitter-cli
+        - "@openai/codex"
