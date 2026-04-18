@@ -67,8 +67,9 @@
     "ralph-loop@claude-plugins-official": true,
     "pyright-lsp@claude-plugins-official": true
   },
+  "skipDangerousModePermissionPrompt": true,
   "sandbox": {
-{{- if or (eq .chezmoi.hostname "mbvu1314-2") (eq .chezmoi.hostname "Trents-Macbook-Pro") (eq .chezmoi.hostname "Trents-Mac-mini") }}
+{{- if or (eq .chezmoi.hostname "mbvu1314-2") (eq .chezmoi.hostname "Trents-MBP") (eq .chezmoi.hostname "Trents-Mac-mini") }}
     "enabled": false
 {{- else }}
     "enabled": true,

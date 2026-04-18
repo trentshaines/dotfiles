@@ -1,0 +1,30 @@
+# Global mise tool configuration
+# Managed by chezmoi — ~/.config/mise/config.toml
+# All versions pinned for reproducibility
+
+[tools]
+# Languages
+node = "22"
+python = "3.13"
+
+# Package managers
+uv = "latest"
+poetry = "latest"
+
+# Editor
+neovim = "0.12"
+
+# CLI tools
+ripgrep = "latest"
+fd = "latest"
+bat = "latest"
+eza = "latest"
+fzf = "latest"
+jq = "latest"
+lazygit = "latest"
+starship = "latest"
+zoxide = "latest"
+gh = "latest"
+xh = "latest"
+yq = "latest"
+awscli = "latest"

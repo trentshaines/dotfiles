@@ -25,42 +25,18 @@
     - name: Install brew formulae
       homebrew:
         name:
-          # Editor and development
-          - neovim
-          - tmux
+          # Core (must be available before mise)
           - git
-          - gh
-          - lazygit
-
-          # Shell
+          - tmux
           - fish
-          - starship
-
-          # Search and navigation
-          - fzf
-          - fd
-          - ripgrep
-          - zoxide
-          - bat
-          - eza
-
-          # Python
-          - python@3.13
-          - poetry
-          - pyenv
-          - pyenv-virtualenv
-          - pipx
-
-          # Node
-          - node
-          - nvm
+          - chezmoi
+          - mise
 
           # Database tools
           - postgresql@17
           - pgcli
 
           # Utilities
-          - chezmoi
           - htop
           - btop
           - tree-sitter
@@ -68,10 +44,8 @@
           - tmuxinator
           - borders
           - fzf-bookmark-opener
-          - jq
           - tree
           - coreutils
-          - xh
 
           # Security
           - gnupg
@@ -139,6 +113,13 @@
       args:
         creates: "{{ ansible_facts['env']['HOME'] }}/.config/fish/functions/fisher.fish"
 
+    - name: Install mise-managed tools
+      shell: |
+        eval "$(/opt/homebrew/bin/brew shellenv)"
+        mise install --yes
+      args:
+        creates: "{{ ansible_facts['env']['HOME'] }}/.local/share/mise/installs"
+
     - name: Install TPM (Tmux Plugin Manager)
       git:
         repo: https://github.com/tmux-plugins/tpm
@@ -151,26 +132,20 @@
       args:
         creates: "{{ ansible_facts['env']['HOME'] }}/.local/bin/claude"
 
-    - name: Ensure pipx is ensured (creates ~/.local/bin)
-      command: pipx ensurepath
-      args:
-        creates: "{{ ansible_facts['env']['HOME'] }}/.local/bin/pipx"
-
-    - name: Install autowt via pipx
-      command: pipx install autowt
+    - name: Install global Python tools via uv
+      shell: |
+        eval "$(/opt/homebrew/bin/brew shellenv)"
+        eval "$(mise activate bash)"
+        uv tool install autowt
+        uv tool install python-lsp-server
       args:
         creates: "{{ ansible_facts['env']['HOME'] }}/.local/bin/autowt"
 
-    - name: Install python-lsp-server via pipx
-      command: pipx install python-lsp-server
-      args:
-        creates: "{{ ansible_facts['env']['HOME'] }}/.local/bin/pylsp"
-
     - name: Install global npm packages
-      npm:
-        name: "{{ item }}"
-        global: yes
-        state: present
+      shell: |
+        eval "$(/opt/homebrew/bin/brew shellenv)"
+        eval "$(mise activate bash)"
+        npm install -g {{ item }}
       loop:
         - pyright
         - typescript-language-server
