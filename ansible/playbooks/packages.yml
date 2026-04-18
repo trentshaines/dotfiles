@@ -117,8 +117,7 @@
       shell: |
         eval "$(/opt/homebrew/bin/brew shellenv)"
         mise install --yes
-      args:
-        creates: "{{ ansible_facts['env']['HOME'] }}/.local/share/mise/installs"
+      changed_when: false
 
     - name: Install TPM (Tmux Plugin Manager)
       git:
