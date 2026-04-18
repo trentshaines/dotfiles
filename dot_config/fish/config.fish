@@ -27,11 +27,6 @@ zoxide init fish | source
 # fzf (fuzzy finder)
 fzf --fish | source
 
-# NVM (Node Version Manager) - fish native version via nvm.fish
-# Installed via: fisher install jorgebucaran/nvm.fish
-# Usage: nvm install 20, nvm use 20, nvm list
-# Auto-installed by fisher, no additional setup needed
-
 ################################################################################
 # Aliases
 ################################################################################
@@ -151,13 +146,10 @@ if command -v tmux &>/dev/null; and not set -q TMUX
     tmux has-session -t home 2>/dev/null; or tmuxinator start home
 end
 
-# Pyenv - just shims in PATH (direnv handles virtualenv activation)
-set -gx PYENV_ROOT $HOME/.pyenv
-fish_add_path $PYENV_ROOT/shims
-fish_add_path $PYENV_ROOT/bin
 
-if [ -f '/Users/trent/Downloads/google-cloud-sdk/path.fish.inc' ]
-    . '/Users/trent/Downloads/google-cloud-sdk/path.fish.inc'
+# Pre-populate zoxide with all git projects
+for dir in ~/git/*/
+    zoxide add $dir
 end
 
 # Added by OrbStack: command-line tools and integration
