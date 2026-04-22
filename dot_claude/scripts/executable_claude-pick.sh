@@ -3,6 +3,7 @@
 
 TMUX_BIN="/opt/homebrew/bin/tmux"
 QUEUE_FILE="/tmp/claude-notifications.queue"
+FORMAT_SCRIPT="$HOME/.claude/scripts/claude-format-entries.sh"
 SWITCH_SCRIPT="$HOME/.claude/scripts/claude-switch.sh"
 
 if [[ ! -f "$QUEUE_FILE" ]] || [[ ! -s "$QUEUE_FILE" ]]; then
@@ -10,46 +11,15 @@ if [[ ! -f "$QUEUE_FILE" ]] || [[ ! -s "$QUEUE_FILE" ]]; then
     exit 0
 fi
 
-# Helper script to format entries - will be called by fzf reload
+# Output: ts\ttarget\tclient\tdisplay — sorted by recency, unvisited only
 format_entries() {
-    local now=$(date +%s)
-
-    # Only show unvisited items, sorted by most recent first
-    awk -F'\t' -v now="$now" '$8 == 0 {
-        ts = $1
-        target = $2
-        client = $3
-        project = $4
-        session = $5
-        window_name = $6
-        pane_index = $7
-
-        # Calculate time ago
-        ago_mins = int((now - ts) / 60)
-        if (ago_mins < 1) {
-            finished = "just now"
-        } else if (ago_mins < 60) {
-            finished = ago_mins "m ago"
-        } else {
-            hours = int(ago_mins / 60)
-            finished = hours "h ago"
-        }
-
-        printf "%s\t%s\t%s\t%s: %s → %s (pane %s) | done: %s\n", ts, target, client, project, session, window_name, pane_index, finished
-    }' "$QUEUE_FILE" | sort -t$'\t' -k1,1rn | cut -f2-
+    bash "$FORMAT_SCRIPT"
 }
 
-# Delete entry (pop from queue)
-delete_entry() {
-    local target="$1"
-    awk -F'\t' -v target="$target" '$2 != target' "$QUEUE_FILE" > "$QUEUE_FILE.tmp" && mv "$QUEUE_FILE.tmp" "$QUEUE_FILE"
-}
+RELOAD_CMD="bash '$FORMAT_SCRIPT' | sort -t$'\t' -k1,1rn | cut -f2-"
 
-# Create wrapper script for fzf reload (to avoid "command not found" errors)
-RELOAD_CMD="bash -c 'now=\$(date +%s); awk -F'\''\\t'\'' -v now=\"\$now\" '\''\$8 == 0 { ts = \$1; target = \$2; client = \$3; project = \$4; session = \$5; window_name = \$6; pane_index = \$7; ago_mins = int((now - ts) / 60); if (ago_mins < 1) { finished = \"just now\" } else if (ago_mins < 60) { finished = ago_mins \"m ago\" } else { hours = int(ago_mins / 60); finished = hours \"h ago\" }; printf \"%s\\t%s\\t%s\\t%s: %s → %s (pane %s) | done: %s\\n\", ts, target, client, project, session, window_name, pane_index, finished }'\'' \"$QUEUE_FILE\" | sort -t$'\''\\t'\'' -k1,1rn | cut -f2-'"
-
-# Run fzf with reload bindings (plain fzf since we're already in a display-popup)
-SELECTION=$(format_entries | fzf \
+# Run fzf. Fields after cut: 1=target, 2=client, 3=display
+SELECTION=$(format_entries | sort -t$'\t' -k1,1rn | cut -f2- | fzf \
     --multi \
     --with-nth=3.. \
     --delimiter=$'\t' \
