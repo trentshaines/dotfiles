@@ -13,3 +13,6 @@ Library/Application Support/espanso/match/local.yml
 .claude/skills/basedpyright/
 .claude/MACHINE.md
 .claude.json
+.codex/orgs.txt
+.codex/automations/*/memory.md
+.codex/automations/.run-jitter-salt

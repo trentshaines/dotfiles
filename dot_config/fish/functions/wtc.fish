@@ -126,7 +126,7 @@ function wtc --description "Clean up merged worktrees across all ~/git repos"
                 else
                     echo "  → removing: $branch ($reason)"
                     git -C "$repo_path" worktree remove "$wt_path" --force 2>/dev/null
-                    git -C "$repo_path" branch -d "$branch" 2>/dev/null
+                    test "$branch" != "$base_branch" && git -C "$repo_path" branch -d "$branch" 2>/dev/null
                 end
             else
                 echo "  · keeping: $branch"

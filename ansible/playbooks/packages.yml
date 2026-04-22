@@ -47,6 +47,7 @@
           - tree
           - coreutils
           - terminal-notifier
+          - cloc
 
           # Security
           - gnupg

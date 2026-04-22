@@ -1,0 +1,13 @@
+version = 1
+id = "pull-github"
+kind = "cron"
+name = "Pull Github"
+prompt = "Read the GitHub orgs listed in ~/.codex/orgs.txt (one per line; ignore blank lines and lines starting with #). For each org, ensure all of its repos are cloned into my git folder. Then for every repo, make sure the main worktree (the main repo, the one NOT in -worktrees) is checked out to the main branch and fully up to date on main."
+status = "ACTIVE"
+rrule = "RRULE:FREQ=WEEKLY;BYHOUR=9;BYMINUTE=0;BYDAY=SU,MO,TU,WE,TH,FR,SA"
+model = "gpt-5.4"
+reasoning_effort = "high"
+execution_environment = "local"
+cwds = ["/Users/trenthaines/git"]
+created_at = 1776378863243
+updated_at = 1776379101255
