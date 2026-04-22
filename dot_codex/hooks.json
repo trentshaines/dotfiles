@@ -1,0 +1,28 @@
+{
+  "hooks": {
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "~/.claude/hooks/pane-title.sh"
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "~/.claude/hooks/pane-title.sh"
+          },
+          {
+            "type": "command",
+            "command": "~/.claude/hooks/notify-complete.sh"
+          }
+        ]
+      }
+    ]
+  }
+}
