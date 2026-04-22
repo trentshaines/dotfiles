@@ -53,8 +53,15 @@ function wts --description "Fuzzy switch between branches (creates worktree if n
         echo "Switched to: $path"
     else
         set -l branch (string trim -- "$selected")
-        echo "Creating worktree for: $branch"
-        awt $branch
+        # main/master is the base worktree — cd there instead of creating a new one
+        if test "$branch" = main -o "$branch" = master
+            set -l base_path (git worktree list 2>/dev/null | head -1 | awk '{print $1}')
+            cd "$base_path"
+            echo "Switched to base: $base_path"
+        else
+            echo "Creating worktree for: $branch"
+            awt $branch
+        end
     end
 
     # Update tmux window name to match branch

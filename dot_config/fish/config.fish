@@ -15,19 +15,6 @@ set -gx PASSWORD_STORE_ENABLE_EXTENSIONS true
 
 
 ################################################################################
-# Essential Tools
-################################################################################
-
-# Starship prompt (after Homebrew PATH is set)
-starship init fish | source
-
-# Zoxide (smart cd)
-zoxide init fish | source
-
-# fzf (fuzzy finder)
-fzf --fish | source
-
-################################################################################
 # Aliases
 ################################################################################
 
@@ -104,54 +91,46 @@ alias uf='fzf-bookmark-opener'
 alias fkill='ps -ax | fzf | awk \'{print $1}\' | xargs kill'
 
 ################################################################################
-# Vi Mode
+# Interactive-only setup (skipped for tmux popups, `fish -c`, scripts)
 ################################################################################
 
-# Enable vi mode in fish
-fish_vi_key_bindings
+if status is-interactive
+    # Prompt + navigation tools
+    starship init fish | source
+    zoxide init fish | source
+    fzf --fish | source
 
-# Remove mode indicator from prompt (use cursor shape instead)
-function fish_mode_prompt
-    # Empty function - no text indicator
-end
-
-# Change cursor shape for different vi modes
-set -g fish_cursor_default block
-
-# Load event-driven functions (--on-variable won't auto-register via autoload)
-__update_tmux_window_name 2>/dev/null
-
-# Autosuggestion color (dim gray to distinguish from typed text)
-set -g fish_color_autosuggestion 888
-set -g fish_cursor_insert line
-set -g fish_cursor_replace_one underscore
-set -g fish_cursor_visual block
-
-# Edit command in vim with 'v' in normal mode (like zsh)
-function fish_user_key_bindings
+    # Vi mode
     fish_vi_key_bindings
-    # Edit command buffer with 'v' in normal mode
-    bind -M default v edit_command_buffer
-    # Also keep Ctrl-E as alternative
-    bind -M insert \ce edit_command_buffer
-    bind -M default \ce edit_command_buffer
-end
 
-################################################################################
-# Auto-create home tmux session
-################################################################################
+    # Remove mode indicator from prompt (use cursor shape instead)
+    function fish_mode_prompt
+    end
 
-if command -v tmux &>/dev/null; and not set -q TMUX
-    # Create a "home" session if it doesn't exist
-    tmux has-session -t home 2>/dev/null; or tmuxinator start home
-end
+    set -g fish_cursor_default block
+    set -g fish_color_autosuggestion 888
+    set -g fish_cursor_insert line
+    set -g fish_cursor_replace_one underscore
+    set -g fish_cursor_visual block
 
+    function fish_user_key_bindings
+        fish_vi_key_bindings
+        bind -M default v edit_command_buffer
+        bind -M insert \ce edit_command_buffer
+        bind -M default \ce edit_command_buffer
+    end
 
-# Pre-populate zoxide with all git projects
-for dir in ~/git/*/
-    zoxide add $dir
+    __update_tmux_window_name 2>/dev/null
+
+    # Auto-create home tmux session
+    if command -v tmux &>/dev/null; and not set -q TMUX
+        tmux has-session -t home 2>/dev/null; or tmuxinator start home
+    end
 end
 
 # Added by OrbStack: command-line tools and integration
 # This won't be added again if you remove it.
 source ~/.orbstack/shell/init2.fish 2>/dev/null || :
+
+# The next line updates PATH for the Google Cloud SDK.
+if [ -f '/Users/trenthaines/google-cloud-sdk/path.fish.inc' ]; . '/Users/trenthaines/google-cloud-sdk/path.fish.inc'; end

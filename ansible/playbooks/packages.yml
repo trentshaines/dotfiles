@@ -46,6 +46,7 @@
           - fzf-bookmark-opener
           - tree
           - coreutils
+          - terminal-notifier
 
           # Security
           - gnupg
