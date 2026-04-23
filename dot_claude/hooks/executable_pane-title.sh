@@ -68,12 +68,5 @@ elif [[ "$HOOK_EVENT" == "Stop" ]]; then
     if [[ -n "$CURRENT" && "$CURRENT" != *"✓"* ]]; then
         $TMUX_BIN select-pane -t "$PANE_ID" -T "✓ $CURRENT"
     fi
-
-    # Window name: clear Claude name, fall back to automatic-rename
-    AUTO_CLAUDE=$(win_get @auto-claude)
-    CURRENT_WIN=$(win_name)
-    if [[ -n "$AUTO_CLAUDE" && "$CURRENT_WIN" == "$AUTO_CLAUDE" ]]; then
-        win_unset @auto-claude
-        $TMUX_BIN set-option -w automatic-rename on
-    fi
+    # Window name: leave it — next prompt will update it
 fi
