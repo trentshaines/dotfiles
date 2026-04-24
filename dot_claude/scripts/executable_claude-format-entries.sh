@@ -6,13 +6,16 @@ QUEUE_FILE="/tmp/claude-notifications.queue"
 [[ ! -f "$QUEUE_FILE" ]] && exit 0
 
 # stty reads from /dev/tty directly — works even in subshells/pipelines
-# tmux pane_width is the most reliable source inside a popup
-cols=$(tmux display-message -p '#{pane_width}' 2>/dev/null)
-[[ -z "$cols" ]] && cols=$({ stty size </dev/tty; } 2>/dev/null | awk '{print $2}')
-[[ -z "$cols" ]] && cols=${COLUMNS:-80}
+# TMUX_CLIENT_WIDTH is injected by the display-popup bind (-e flag).
+# popup is -w 70%, so multiply accordingly. Inherited by fzf reload subprocesses.
+if [[ -n "$TMUX_CLIENT_WIDTH" ]]; then
+    cols=$(( TMUX_CLIENT_WIDTH * 70 / 100 ))
+else
+    cols=${COLUMNS:-80}
+fi
 
 python3 - "$QUEUE_FILE" "$(date +%s)" "$cols" <<'PYEOF'
-import sys, subprocess, unicodedata, os
+import sys, subprocess, unicodedata
 
 queue_file, now, cols = sys.argv[1], int(sys.argv[2]), int(sys.argv[3])
 usable = cols - 6  # fzf rounded border (4) + internal padding (2)
