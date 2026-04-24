@@ -5,12 +5,19 @@
 QUEUE_FILE="/tmp/claude-notifications.queue"
 [[ ! -f "$QUEUE_FILE" ]] && exit 0
 
-python3 - "$QUEUE_FILE" "$(date +%s)" <<'PYEOF'
-import sys, subprocess, unicodedata, shutil
+# stty reads from /dev/tty directly — works even in subshells/pipelines
+cols_fallback=$({ stty size </dev/tty; } 2>/dev/null | awk '{print $2}')
+[[ -z "$cols_fallback" ]] && cols_fallback=${COLUMNS:-80}
 
-queue_file, now = sys.argv[1], int(sys.argv[2])
-# Query terminal size the same way fzf does — works correctly inside tmux popups
-cols = shutil.get_terminal_size((80, 24)).columns
+python3 - "$QUEUE_FILE" "$(date +%s)" "$cols_fallback" <<'PYEOF'
+import sys, subprocess, unicodedata, os
+
+queue_file, now, cols_fallback = sys.argv[1], int(sys.argv[2]), int(sys.argv[3])
+# fd 2 (stderr) stays attached to the tty even when stdout is piped (fzf reload)
+try:
+    cols = os.get_terminal_size(2).columns
+except OSError:
+    cols = int(os.environ.get('COLUMNS', cols_fallback))
 usable = cols - 4  # fzf rounded border: 2 chars each side
 
 def dw(s):
