@@ -127,6 +127,12 @@
         dest: "{{ ansible_facts['env']['HOME'] }}/.tmux/plugins/tpm"
         update: no
 
+    - name: Install TPM plugins declared in tmux.conf
+      shell: |
+        "{{ ansible_facts['env']['HOME'] }}/.tmux/plugins/tpm/bin/install_plugins"
+      args:
+        creates: "{{ ansible_facts['env']['HOME'] }}/.tmux/plugins/tmux-resurrect"
+
     - name: Install Claude Code via native installer
       shell: |
         curl -fsSL https://raw.githubusercontent.com/anthropics/claude-code/main/install.sh | sh
