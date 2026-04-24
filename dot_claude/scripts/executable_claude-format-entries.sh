@@ -5,13 +5,13 @@
 QUEUE_FILE="/tmp/claude-notifications.queue"
 [[ ! -f "$QUEUE_FILE" ]] && exit 0
 
-popup_width=$(tput cols 2>/dev/null || echo 80)
+python3 - "$QUEUE_FILE" "$(date +%s)" <<'PYEOF'
+import sys, subprocess, unicodedata, shutil
 
-python3 - "$QUEUE_FILE" "$(date +%s)" "$popup_width" <<'PYEOF'
-import sys, subprocess, unicodedata
-
-queue_file, now, popup_width = sys.argv[1], int(sys.argv[2]), int(sys.argv[3])
-usable = popup_width - 4
+queue_file, now = sys.argv[1], int(sys.argv[2])
+# Query terminal size the same way fzf does — works correctly inside tmux popups
+cols = shutil.get_terminal_size((80, 24)).columns
+usable = cols - 4  # fzf rounded border: 2 chars each side
 
 def dw(s):
     """Display width of string (handles wide Unicode chars)."""
