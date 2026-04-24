@@ -1,71 +1,96 @@
 #!/bin/bash
 # Formats pending Claude notifications for fzf display.
-# Output fields (tab-delimited): ts | target | client | display_string
-# Two-pass: first collect all rows + find max column widths, then format aligned.
+# Delegates to Python for correct Unicode display-width handling.
 
 QUEUE_FILE="/tmp/claude-notifications.queue"
 [[ ! -f "$QUEUE_FILE" ]] && exit 0
 
-now=$(date +%s)
-popup_width=$(tput cols 2>/dev/null || echo 70)
-usable=$(( popup_width - 4 ))
+popup_width=$(tput cols 2>/dev/null || echo 80)
 
-# --- Pass 1: collect rows, compute max column widths ---
-declare -a R_ts R_target R_client R_loc R_title R_finished R_project
+python3 - "$QUEUE_FILE" "$(date +%s)" "$popup_width" <<'PYEOF'
+import sys, subprocess, unicodedata
 
-max_loc=0
-max_title=0
-max_finished=0
-max_project=0
-count=0
+queue_file, now, popup_width = sys.argv[1], int(sys.argv[2]), int(sys.argv[3])
+usable = popup_width - 4
 
-while IFS=$'\t' read -r ts target client project session window_name pane_index visited; do
-    [[ "$visited" != "0" ]] && continue
+def dw(s):
+    """Display width of string (handles wide Unicode chars)."""
+    return sum(2 if unicodedata.east_asian_width(c) in 'WF' else 1 for c in s)
 
-    pane_title=$(tmux display-message -t "$target" -p '#{pane_title}' 2>/dev/null || true)
-    # Strip leading ✓ from pane title if present
-    pane_title="${pane_title#✓ }"
+def trunc(s, max_w):
+    """Truncate to max display width, appending … if cut."""
+    if dw(s) <= max_w:
+        return s
+    out, w = '', 0
+    for c in s:
+        cw = 2 if unicodedata.east_asian_width(c) in 'WF' else 1
+        if w + cw > max_w - 1:
+            return out + '…'
+        out += c; w += cw
+    return out
 
-    ago_mins=$(( (now - ts) / 60 ))
-    if   (( ago_mins < 1  )); then finished="just now"
-    elif (( ago_mins < 60 )); then finished="${ago_mins}m ago"
-    else finished="$(( ago_mins / 60 ))h ago"
-    fi
+def pad(s, width):
+    """Truncate then space-pad to exact display width."""
+    s = trunc(s, width)
+    return s + ' ' * (width - dw(s))
 
-    loc="${session} → ${window_name} (pane ${pane_index})"
+# Parse queue
+rows = []
+try:
+    lines = open(queue_file).readlines()
+except:
+    sys.exit(0)
 
-    R_ts[$count]="$ts";           R_target[$count]="$target"
-    R_client[$count]="$client";   R_loc[$count]="$loc"
-    R_title[$count]="$pane_title" R_finished[$count]="$finished"
-    R_project[$count]="$project"
+for line in sorted(lines, key=lambda l: -(int(l.split('\t')[0]) if l.split('\t')[0].isdigit() else 0)):
+    parts = line.rstrip('\n').split('\t')
+    if len(parts) < 8:
+        continue
+    ts, target, client, project, session, window_name, pane_index, visited = parts[0], parts[1], parts[2], parts[3], parts[4], parts[5], parts[6], parts[7]
+    if visited != '0':
+        continue
+    if not ts.isdigit() or not target:
+        continue
 
-    (( ${#loc}        > max_loc      )) && max_loc=${#loc}
-    (( ${#pane_title} > max_title    )) && max_title=${#pane_title}
-    (( ${#finished}   > max_finished )) && max_finished=${#finished}
-    (( ${#project}    > max_project  )) && max_project=${#project}
+    try:
+        pane_title = subprocess.check_output(
+            ['/opt/homebrew/bin/tmux', 'display-message', '-t', target, '-p', '#{pane_title}'],
+            stderr=subprocess.DEVNULL, timeout=1
+        ).decode().strip()
+        # Strip done markers (✓ U+2713, ✳ U+2733)
+        for prefix in ('✓ ', '✳ ', '✓ ', '✳ '):
+            if pane_title.startswith(prefix):
+                pane_title = pane_title[len(prefix):]
+                break
+    except:
+        pane_title = ''
 
-    (( count++ ))
-done < <(sort -t$'\t' -k1,1rn "$QUEUE_FILE")
+    ago = (now - int(ts)) // 60
+    if   ago < 1:  finished = 'just now'
+    elif ago < 60: finished = f'{ago}m ago'
+    else:          finished = f'{ago // 60}h ago'
 
-(( count == 0 )) && exit 0
+    loc = f'{session} → {window_name} (pane {pane_index})'
+    rows.append((ts, target, client, loc, pane_title, finished, project))
 
-# --- Pass 2: emit aligned rows ---
-for (( i=0; i<count; i++ )); do
-    col_loc=$(     printf "%-${max_loc}s"      "${R_loc[$i]}")
-    col_finished=$(printf "%-${max_finished}s" "${R_finished[$i]}")
-    col_project="${R_project[$i]}"
+if not rows:
+    sys.exit(0)
 
-    if [[ -n "${R_title[$i]}" ]]; then
-        col_title=$(printf "%-${max_title}s" "${R_title[$i]}")
-        left="${col_loc} | ${col_title} | ${col_finished}"
-    else
-        empty=$(printf "%-${max_title}s" "")
-        left="${col_loc} | ${empty} | ${col_finished}"
-    fi
+# Column widths
+SEP = ' │ '
+sep_w = dw(SEP)
+time_w = 9  # "just now" = 8
 
-    pad=$(( usable - ${#left} - ${#col_project} ))
-    (( pad < 2 )) && pad=2
-    display="${left}$(printf '%*s' $pad '')${col_project}"
+max_proj = min(20, max(dw(r[6]) for r in rows))
 
-    printf "%s\t%s\t%s\t%s\n" "${R_ts[$i]}" "${R_target[$i]}" "${R_client[$i]}" "$display"
-done
+# remaining space for loc + title
+inner = usable - time_w - sep_w * 2 - max_proj - 2
+loc_w   = max(15, min(32, inner * 2 // 5))
+title_w = max(10, inner - loc_w)
+
+for ts, target, client, loc, title, finished, project in rows:
+    left = pad(loc, loc_w) + SEP + pad(title, title_w) + SEP + pad(finished, time_w)
+    proj = trunc(project, max_proj)
+    gap = max(2, usable - dw(left) - dw(proj))
+    print(f'{ts}\t{target}\t{client}\t{left}{" " * gap}{proj}')
+
+PYEOF
