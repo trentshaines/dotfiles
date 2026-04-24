@@ -6,19 +6,16 @@ QUEUE_FILE="/tmp/claude-notifications.queue"
 [[ ! -f "$QUEUE_FILE" ]] && exit 0
 
 # stty reads from /dev/tty directly — works even in subshells/pipelines
-cols_fallback=$({ stty size </dev/tty; } 2>/dev/null | awk '{print $2}')
-[[ -z "$cols_fallback" ]] && cols_fallback=${COLUMNS:-80}
+# tmux pane_width is the most reliable source inside a popup
+cols=$(tmux display-message -p '#{pane_width}' 2>/dev/null)
+[[ -z "$cols" ]] && cols=$({ stty size </dev/tty; } 2>/dev/null | awk '{print $2}')
+[[ -z "$cols" ]] && cols=${COLUMNS:-80}
 
-python3 - "$QUEUE_FILE" "$(date +%s)" "$cols_fallback" <<'PYEOF'
+python3 - "$QUEUE_FILE" "$(date +%s)" "$cols" <<'PYEOF'
 import sys, subprocess, unicodedata, os
 
-queue_file, now, cols_fallback = sys.argv[1], int(sys.argv[2]), int(sys.argv[3])
-# fd 2 (stderr) stays attached to the tty even when stdout is piped (fzf reload)
-try:
-    cols = os.get_terminal_size(2).columns
-except OSError:
-    cols = int(os.environ.get('COLUMNS', cols_fallback))
-usable = cols - 4  # fzf rounded border: 2 chars each side
+queue_file, now, cols = sys.argv[1], int(sys.argv[2]), int(sys.argv[3])
+usable = cols - 6  # fzf rounded border (4) + internal padding (2)
 
 def dw(s):
     """Display width of string (handles wide Unicode chars)."""
@@ -82,21 +79,35 @@ for line in sorted(lines, key=lambda l: -(int(l.split('\t')[0]) if l.split('\t')
 if not rows:
     sys.exit(0)
 
-# Column widths
+# Column widths — hard caps first, then fit to available space
 SEP = ' │ '
 sep_w = dw(SEP)
-time_w = 9  # "just now" = 8
+time_w  = 9   # "just now" = 8, "59m ago" = 6
+loc_cap = 30
+title_cap = 36
+proj_cap  = 20
 
-max_proj = min(20, max(dw(r[6]) for r in rows))
+# Natural widths from content (don't pad wider than needed)
+nat_loc   = min(loc_cap,   max(dw(r[3]) for r in rows))
+nat_title = min(title_cap, max(dw(r[4]) for r in rows) if any(r[4] for r in rows) else 0)
+nat_proj  = min(proj_cap,  max(dw(r[6]) for r in rows))
 
-# remaining space for loc + title
-inner = usable - time_w - sep_w * 2 - max_proj - 2
-loc_w   = max(15, min(32, inner * 2 // 5))
-title_w = max(10, inner - loc_w)
+# Total fixed layout cost
+fixed = nat_loc + sep_w + nat_title + sep_w + time_w + 2 + nat_proj
+# If it doesn't fit, shrink title first then loc
+if fixed > usable:
+    overage = fixed - usable
+    reduction = min(overage, nat_title - 10)
+    nat_title -= reduction
+    overage -= reduction
+    if overage > 0:
+        nat_loc = max(10, nat_loc - overage)
+
+loc_w, title_w, proj_w = nat_loc, nat_title, nat_proj
 
 for ts, target, client, loc, title, finished, project in rows:
     left = pad(loc, loc_w) + SEP + pad(title, title_w) + SEP + pad(finished, time_w)
-    proj = trunc(project, max_proj)
+    proj = trunc(project, proj_w)
     gap = max(2, usable - dw(left) - dw(proj))
     print(f'{ts}\t{target}\t{client}\t{left}{" " * gap}{proj}')
 
