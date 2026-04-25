@@ -68,26 +68,23 @@ if not rows:
     sys.exit(0)
 
 # 4-column table: loc │ title │ time │ project
-# No right-alignment gap — just four clean padded columns.
+# title expands to fill whatever usable space remains after fixed columns.
 SEP   = ' │ '
 sep_w = dw(SEP)
 time_w = 9  # "just now" fits
 
-# Natural content widths, capped at sensible maxes
-loc_w   = min(30, max(dw(r[3]) for r in rows))
-title_w = min(40, max(dw(r[4]) for r in rows) if any(r[4] for r in rows) else 0)
-proj_w  = min(22, max(dw(r[6]) for r in rows))
+# Fixed columns: natural width capped at max
+loc_w  = min(30, max(dw(r[3]) for r in rows))
+proj_w = min(22, max(dw(r[6]) for r in rows))
 
-# Total = loc + SEP + title + SEP + time + SEP + proj
-total = loc_w + sep_w + title_w + sep_w + time_w + sep_w + proj_w
+# Title gets all remaining space (3 separators between 4 columns)
+overhead = loc_w + sep_w * 3 + time_w + proj_w
+title_w  = max(10, usable - overhead)
 
-# If over budget, shrink title first, then loc
+# Shrink title if still over (shouldn't happen, but safety)
+total = overhead + title_w
 if total > usable:
-    over = total - usable
-    cut = min(over, title_w - 10)
-    title_w -= cut; over -= cut
-    if over > 0:
-        loc_w = max(10, loc_w - over)
+    title_w = max(10, title_w - (total - usable))
 
 for ts, target, client, loc, title, finished, project in rows:
     line = (pad(loc, loc_w) + SEP +
