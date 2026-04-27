@@ -47,9 +47,13 @@ done < <(sort -t$'\t' -k1,1rn "$QUEUE_FILE")
 DISPLAY_FILE="$WORK/display.txt"
 cut -f1,2,4 "$TABLE" | awk -F'\t' '{printf "%-40s %-30s %s\n", $1, $2, $3}' > "$DISPLAY_FILE"
 
+ROW_COUNT=$(wc -l < "$DISPLAY_FILE")
+HEIGHT=$(( ROW_COUNT + 3 ))  # +3 for input line, header, padding
+(( HEIGHT > 20 )) && HEIGHT=20
+
 FILTERED=$(gum filter \
     --no-limit \
-    --height=20 \
+    --height="$HEIGHT" \
     --placeholder="Search..." \
     --prompt="  " \
     --header=" enter: confirm · tab: multi-select" \
