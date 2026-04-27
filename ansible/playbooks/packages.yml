@@ -25,18 +25,43 @@
     - name: Install brew formulae
       homebrew:
         name:
-          # Core (must be available before mise)
-          - git
+          # Editor and development
+          - neovim
           - tmux
+          - git
+          - gh
+          - lazygit
+
+          # Shell
           - fish
-          - chezmoi
-          - mise
+          - starship
+
+          # Search and navigation
+          - fzf
+          - fd
+          - ripgrep
+          - zoxide
+          - bat
+          - eza
+          - gum
+
+          # Python
+          - python@3.13
+          - poetry
+          - pyenv
+          - pyenv-virtualenv
+          - pipx
+
+          # Node
+          - node
+          - nvm
 
           # Database tools
           - postgresql@17
           - pgcli
 
           # Utilities
+          - chezmoi
           - htop
           - btop
           - tree-sitter
@@ -44,10 +69,10 @@
           - tmuxinator
           - borders
           - fzf-bookmark-opener
+          - jq
           - tree
           - coreutils
-          - terminal-notifier
-          - cloc
+          - xh
 
           # Security
           - gnupg
@@ -115,23 +140,11 @@
       args:
         creates: "{{ ansible_facts['env']['HOME'] }}/.config/fish/functions/fisher.fish"
 
-    - name: Install mise-managed tools
-      shell: |
-        eval "$(/opt/homebrew/bin/brew shellenv)"
-        mise install --yes
-      changed_when: false
-
     - name: Install TPM (Tmux Plugin Manager)
       git:
         repo: https://github.com/tmux-plugins/tpm
         dest: "{{ ansible_facts['env']['HOME'] }}/.tmux/plugins/tpm"
         update: no
-
-    - name: Install TPM plugins declared in tmux.conf
-      shell: |
-        "{{ ansible_facts['env']['HOME'] }}/.tmux/plugins/tpm/bin/install_plugins"
-      args:
-        creates: "{{ ansible_facts['env']['HOME'] }}/.tmux/plugins/tmux-resurrect"
 
     - name: Install Claude Code via native installer
       shell: |
@@ -139,23 +152,28 @@
       args:
         creates: "{{ ansible_facts['env']['HOME'] }}/.local/bin/claude"
 
-    - name: Install global Python tools via uv
-      shell: |
-        eval "$(/opt/homebrew/bin/brew shellenv)"
-        eval "$(mise activate bash)"
-        uv tool install autowt
-        uv tool install python-lsp-server
+    - name: Ensure pipx is ensured (creates ~/.local/bin)
+      command: pipx ensurepath
+      args:
+        creates: "{{ ansible_facts['env']['HOME'] }}/.local/bin/pipx"
+
+    - name: Install autowt via pipx
+      command: pipx install autowt
       args:
         creates: "{{ ansible_facts['env']['HOME'] }}/.local/bin/autowt"
 
+    - name: Install python-lsp-server via pipx
+      command: pipx install python-lsp-server
+      args:
+        creates: "{{ ansible_facts['env']['HOME'] }}/.local/bin/pylsp"
+
     - name: Install global npm packages
-      shell: |
-        eval "$(/opt/homebrew/bin/brew shellenv)"
-        eval "$(mise activate bash)"
-        npm install -g {{ item }}
+      npm:
+        name: "{{ item }}"
+        global: yes
+        state: present
       loop:
         - pyright
         - typescript-language-server
         - typescript
         - tree-sitter-cli
-        - "@openai/codex"

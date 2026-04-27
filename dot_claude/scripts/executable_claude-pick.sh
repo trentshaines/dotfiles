@@ -1,5 +1,5 @@
 #!/bin/bash
-# Claude notification picker using gum table
+# Claude notification picker: gum table + gum filter + gum choose
 
 TMUX_BIN="/opt/homebrew/bin/tmux"
 QUEUE_FILE="/tmp/claude-notifications.queue"
@@ -13,8 +13,9 @@ DELETE_SCRIPT="$HOME/.claude/scripts/claude-delete.sh"
 
 now=$(date +%s)
 WORK=$(mktemp -d)
+trap "rm -rf $WORK" EXIT
 TABLE="$WORK/table.tsv"
-META="$WORK/meta.tsv"   # parallel file: ts\ttarget\tclient per row
+META="$WORK/meta.tsv"
 
 while IFS=$'\t' read -r ts target client project session window_name pane_index visited; do
     [[ "$visited" != "0" ]] && continue
@@ -22,8 +23,7 @@ while IFS=$'\t' read -r ts target client project session window_name pane_index 
     [[ -z "$target" ]] && continue
 
     pane_title=$($TMUX_BIN display-message -t "$target" -p '#{pane_title}' 2>/dev/null || true)
-    pane_title="${pane_title#✓ }"
-    pane_title="${pane_title#✳ }"
+    pane_title="${pane_title#✓ }"; pane_title="${pane_title#✳ }"
 
     ago=$(( (now - ts) / 60 ))
     if   (( ago < 1  )); then finished="just now"
@@ -38,26 +38,50 @@ while IFS=$'\t' read -r ts target client project session window_name pane_index 
 
 done < <(sort -t$'\t' -k1,1rn "$QUEUE_FILE")
 
-if [[ ! -s "$TABLE" ]]; then
+[[ ! -s "$TABLE" ]] && {
     $TMUX_BIN display-message "No pending Claude notifications"
-    rm -rf "$WORK"; exit 0
+    exit 0
+}
+
+# Step 1: gum filter — fuzzy search, tab for multi-select
+DISPLAY_FILE="$WORK/display.txt"
+cut -f1,2,4 "$TABLE" | awk -F'\t' '{printf "%-40s %-30s %s\n", $1, $2, $3}' > "$DISPLAY_FILE"
+
+FILTERED=$(gum filter \
+    --no-limit \
+    --height=20 \
+    --placeholder="Search..." \
+    --prompt="  " \
+    --header=" enter: confirm · tab: multi-select" \
+    < "$DISPLAY_FILE")
+
+[[ -z "$FILTERED" ]] && exit 0
+
+SEL_COUNT=$(echo "$FILTERED" | wc -l | tr -d ' ')
+
+# Step 2: gum choose — pick action
+if [[ "$SEL_COUNT" -eq 1 ]]; then
+    ACTION=$(gum choose \
+        --header=" What do you want to do?" \
+        "→  Switch to pane" \
+        "✕  Dismiss" \
+        "←  Cancel")
+else
+    ACTION=$(gum choose \
+        --header=" $SEL_COUNT notifications selected" \
+        "✕  Dismiss all" \
+        "←  Cancel")
 fi
 
-SELECTION=$(gum table \
-    --separator=$'\t' \
-    --columns="Location,Task,Time,Project" \
-    --border=rounded \
-    --border.foreground="240" \
-    --header.foreground="212" \
-    --selected.foreground="212" \
-    < "$TABLE")
+[[ -z "$ACTION" || "$ACTION" == *Cancel* ]] && exit 0
 
-if [[ -n "$SELECTION" ]]; then
-    ROW=$(grep -nxF "$SELECTION" "$TABLE" | head -1 | cut -d: -f1)
-    if [[ -n "$ROW" ]]; then
-        IFS=$'\t' read -r ts TARGET CLIENT < <(sed -n "${ROW}p" "$META")
-        "$SWITCH_SCRIPT" "$TARGET" "$CLIENT"
-    fi
-fi
-
-rm -rf "$WORK"
+# Step 3: execute
+while IFS= read -r sel; do
+    ROW=$(grep -nxF "$sel" "$DISPLAY_FILE" | head -1 | cut -d: -f1)
+    [[ -z "$ROW" ]] && continue
+    IFS=$'\t' read -r ts TARGET CLIENT < <(sed -n "${ROW}p" "$META")
+    case "$ACTION" in
+        *Switch*) "$SWITCH_SCRIPT" "$TARGET" "$CLIENT" ;;
+        *Dismiss*) "$DELETE_SCRIPT" "$ts" ;;
+    esac
+done <<< "$FILTERED"
