@@ -1,40 +1,63 @@
 #!/bin/bash
-# fzf picker for pending Claude notifications
+# Claude notification picker using gum table
 
 TMUX_BIN="/opt/homebrew/bin/tmux"
 QUEUE_FILE="/tmp/claude-notifications.queue"
-FORMAT_SCRIPT="$HOME/.claude/scripts/claude-format-entries.sh"
 SWITCH_SCRIPT="$HOME/.claude/scripts/claude-switch.sh"
+DELETE_SCRIPT="$HOME/.claude/scripts/claude-delete.sh"
 
-if [[ ! -f "$QUEUE_FILE" ]] || [[ ! -s "$QUEUE_FILE" ]]; then
+[[ ! -f "$QUEUE_FILE" ]] || [[ ! -s "$QUEUE_FILE" ]] && {
     $TMUX_BIN display-message "No pending Claude notifications"
     exit 0
-fi
-
-# Output: ts\ttarget\tclient\tdisplay — sorted by recency, unvisited only
-format_entries() {
-    bash "$FORMAT_SCRIPT"
 }
 
-RELOAD_CMD="bash '$FORMAT_SCRIPT' | sort -t$'\t' -k1,1rn | cut -f2-"
+now=$(date +%s)
+WORK=$(mktemp -d)
+TABLE="$WORK/table.tsv"
+META="$WORK/meta.tsv"   # parallel file: ts\ttarget\tclient per row
 
-# Run fzf. Fields after cut: 1=target, 2=client, 3=display
-SELECTION=$(format_entries | sort -t$'\t' -k1,1rn | cut -f2- | fzf \
-    --multi \
-    --with-nth=3.. \
-    --delimiter=$'\t' \
-    --prompt="Claude > " \
-    --reverse \
-    --border=rounded \
-    --border-label ' Claude Notifications ' \
-    --header 'tab: select | enter: switch | ctrl-d: dismiss selected' \
-    --bind "ctrl-d:execute-silent($HOME/.claude/scripts/claude-delete.sh {+1})+reload($RELOAD_CMD)+deselect-all" \
-)
+while IFS=$'\t' read -r ts target client project session window_name pane_index visited; do
+    [[ "$visited" != "0" ]] && continue
+    [[ ! "$ts" =~ ^[0-9]+$ ]] && continue
+    [[ -z "$target" ]] && continue
 
-if [[ -n "$SELECTION" ]]; then
-    TARGET=$(echo "$SELECTION" | cut -d$'\t' -f1)
-    CLIENT=$(echo "$SELECTION" | cut -d$'\t' -f2)
-    "$SWITCH_SCRIPT" "$TARGET" "$CLIENT"
+    pane_title=$($TMUX_BIN display-message -t "$target" -p '#{pane_title}' 2>/dev/null || true)
+    pane_title="${pane_title#✓ }"
+    pane_title="${pane_title#✳ }"
+
+    ago=$(( (now - ts) / 60 ))
+    if   (( ago < 1  )); then finished="just now"
+    elif (( ago < 60 )); then finished="${ago}m ago"
+    else                       finished="$(( ago / 60 ))h ago"
+    fi
+
+    printf '%s\t%s\t%s\t%s\n' \
+        "${session} → ${window_name} (pane ${pane_index})" \
+        "$pane_title" "$finished" "$project" >> "$TABLE"
+    printf '%s\t%s\t%s\n' "$ts" "$target" "$client" >> "$META"
+
+done < <(sort -t$'\t' -k1,1rn "$QUEUE_FILE")
+
+if [[ ! -s "$TABLE" ]]; then
+    $TMUX_BIN display-message "No pending Claude notifications"
+    rm -rf "$WORK"; exit 0
 fi
 
-exit 0
+SELECTION=$(gum table \
+    --separator=$'\t' \
+    --columns="Location,Task,Time,Project" \
+    --border=rounded \
+    --border.foreground="240" \
+    --header.foreground="212" \
+    --selected.foreground="212" \
+    < "$TABLE")
+
+if [[ -n "$SELECTION" ]]; then
+    ROW=$(grep -nxF "$SELECTION" "$TABLE" | head -1 | cut -d: -f1)
+    if [[ -n "$ROW" ]]; then
+        IFS=$'\t' read -r ts TARGET CLIENT < <(sed -n "${ROW}p" "$META")
+        "$SWITCH_SCRIPT" "$TARGET" "$CLIENT"
+    fi
+fi
+
+rm -rf "$WORK"
