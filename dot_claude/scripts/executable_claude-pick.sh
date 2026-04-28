@@ -45,17 +45,10 @@ done < <(sort -t$'\t' -k1,1rn "$QUEUE_FILE")
     exit 0
 }
 
-if [[ "$MODE" == "switch" ]]; then
-    LABEL=" Claude Notifications · enter: switch "
-else
-    LABEL=" Claude Notifications · enter: dismiss "
-fi
-
 SELECTION=$(gum table \
     --separator=$'\t' \
     --columns="Location,Task,Time,Project" \
     --border=rounded \
-    --border-label="$LABEL" \
     --border.foreground="240" \
     --header.foreground="212" \
     --selected.foreground="212" \
