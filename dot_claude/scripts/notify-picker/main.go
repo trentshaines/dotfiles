@@ -10,7 +10,6 @@ import (
 	"strconv"
 	"strings"
 	"time"
-	"unicode/utf8"
 
 	"github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/bubbles/list"
@@ -24,7 +23,6 @@ var (
 	tmuxBin   = "/opt/homebrew/bin/tmux"
 	homeDir   = os.Getenv("HOME")
 	deleteScr = homeDir + "/.claude/scripts/claude-delete.sh"
-	switchScr = homeDir + "/.claude/scripts/claude-switch.sh"
 )
 
 // ── Data ──────────────────────────────────────────────────────────────────────
@@ -38,12 +36,12 @@ type Notification struct {
 	windowName string
 	paneIndex  string
 	paneTitle  string
-	done       bool // pane title starts with ✓
+	done       bool
 	timeAgo    string
 }
 
 func (n Notification) FilterValue() string {
-	return n.session + " " + n.windowName + " " + n.paneTitle + " " + n.project + " " + n.target
+	return n.session + " " + n.windowName + " " + n.paneTitle + " " + n.project
 }
 func (n Notification) Title() string       { return n.paneTitle }
 func (n Notification) Description() string { return n.session }
@@ -71,17 +69,14 @@ func loadNotifications() []Notification {
 			continue
 		}
 
-		paneTitle := ""
+		raw := ""
 		if b, err := exec.Command(tmuxBin, "display-message", "-t", target, "-p", "#{pane_title}").Output(); err == nil {
-			paneTitle = strings.TrimSpace(string(b))
-			for _, pfx := range []string{"✓ ", "✳ "} {
-				paneTitle = strings.TrimPrefix(paneTitle, pfx)
-			}
+			raw = strings.TrimSpace(string(b))
 		}
-
-		done := false
-		if b, err := exec.Command(tmuxBin, "display-message", "-t", target, "-p", "#{pane_title}").Output(); err == nil {
-			done = strings.HasPrefix(strings.TrimSpace(string(b)), "✓")
+		done := strings.HasPrefix(raw, "✓")
+		paneTitle := raw
+		for _, pfx := range []string{"✓ ", "✳ "} {
+			paneTitle = strings.TrimPrefix(paneTitle, pfx)
 		}
 
 		out = append(out, Notification{
@@ -97,7 +92,6 @@ func loadNotifications() []Notification {
 			timeAgo:    ago(ts),
 		})
 	}
-
 	sort.Slice(out, func(i, j int) bool { return out[i].ts > out[j].ts })
 	return out
 }
@@ -115,9 +109,9 @@ func ago(ts string) string {
 	}
 }
 
-// ── Display helpers ───────────────────────────────────────────────────────────
+// ── Display ───────────────────────────────────────────────────────────────────
 
-func dw(s string) int { return utf8.RuneCountInString(s) }
+func runes(s string) int { return len([]rune(s)) }
 
 func trunc(s string, max int) string {
 	r := []rune(s)
@@ -130,22 +124,18 @@ func trunc(s string, max int) string {
 	return string(r[:max-1]) + "…"
 }
 
-func padTo(s string, width int) string {
+func pad(s string, width int) string {
 	s = trunc(s, width)
-	return s + strings.Repeat(" ", width-dw(s))
+	return s + strings.Repeat(" ", width-runes(s))
 }
 
 // ── Delegate ──────────────────────────────────────────────────────────────────
 
-type colWidths struct{ loc, title, timeW, proj int }
+type cols struct{ loc, task, timeW, proj int }
 
 type itemDelegate struct {
-	cols   colWidths
+	c      cols
 	marked map[string]bool
-}
-
-func newDelegate(cols colWidths, marked map[string]bool) itemDelegate {
-	return itemDelegate{cols: cols, marked: marked}
 }
 
 func (d itemDelegate) Height() int                              { return 1 }
@@ -153,12 +143,12 @@ func (d itemDelegate) Spacing() int                             { return 0 }
 func (d itemDelegate) Update(_ tea.Msg, _ *list.Model) tea.Cmd { return nil }
 
 var (
-	sNormal   = lipgloss.NewStyle().Foreground(lipgloss.Color("245"))
-	sSelected = lipgloss.NewStyle().Foreground(lipgloss.Color("212")).Bold(true)
-	sMarked   = lipgloss.NewStyle().Foreground(lipgloss.Color("214"))
-	sSelMark  = lipgloss.NewStyle().Foreground(lipgloss.Color("214")).Bold(true)
-	sDone     = lipgloss.NewStyle().Foreground(lipgloss.Color("240"))
-	sActive   = lipgloss.NewStyle().Foreground(lipgloss.Color("86"))
+	sNormal  = lipgloss.NewStyle().Foreground(lipgloss.Color("245"))
+	sSel     = lipgloss.NewStyle().Foreground(lipgloss.Color("212")).Bold(true)
+	sMarked  = lipgloss.NewStyle().Foreground(lipgloss.Color("214"))
+	sSelMark = lipgloss.NewStyle().Foreground(lipgloss.Color("214")).Bold(true)
+	sDone    = lipgloss.NewStyle().Foreground(lipgloss.Color("240"))
+	sActive  = lipgloss.NewStyle().Foreground(lipgloss.Color("86"))
 )
 
 func (d itemDelegate) Render(w io.Writer, m list.Model, index int, item list.Item) {
@@ -169,30 +159,29 @@ func (d itemDelegate) Render(w io.Writer, m list.Model, index int, item list.Ite
 	sel := index == m.Index()
 	mrk := d.marked[n.target]
 
-	prefix := "  "
+	marker := "  "
 	if mrk {
-		prefix = "◉ "
+		marker = "◉ "
 	}
-
-	indicator := "⠿ "
+	status := "⠿ "
 	if n.done {
-		indicator = "✓ "
+		status = "✓ "
 	}
 
-	loc := padTo(n.session+" → "+n.windowName+" ("+n.paneIndex+")", d.cols.loc)
-	tsk := padTo(n.paneTitle, d.cols.title)
-	tim := padTo(n.timeAgo, d.cols.timeW)
-	prj := trunc(n.project, d.cols.proj)
+	// Columns: session→window | [pane] task | time | project
+	loc := pad(n.session+" → "+n.windowName, d.c.loc)
+	taskStr := "[" + n.paneIndex + "] " + n.paneTitle
+	task := pad(taskStr, d.c.task)
+	t := pad(n.timeAgo, d.c.timeW)
+	proj := trunc(n.project, d.c.proj)
 
-	line := prefix + indicator + loc + "  " + tsk + "  " + tim + "  " + prj
+	line := marker + status + loc + "  " + task + "  " + t + "  " + proj
 
 	switch {
 	case sel && mrk:
 		fmt.Fprint(w, sSelMark.Render(line))
-	case sel && !n.done:
-		fmt.Fprint(w, sSelected.Render(line))
 	case sel:
-		fmt.Fprint(w, sSelected.Render(line))
+		fmt.Fprint(w, sSel.Render(line))
 	case mrk:
 		fmt.Fprint(w, sMarked.Render(line))
 	case n.done:
@@ -202,13 +191,33 @@ func (d itemDelegate) Render(w io.Writer, m list.Model, index int, item list.Ite
 	}
 }
 
-// ── Model ─────────────────────────────────────────────────────────────────────
+func makeCols(width int) cols {
+	// fixed: marker(2)+status(2)+sep(2)+sep(2)+time(9)+sep(2)+proj(20) = 39
+	timeW := 9
+	proj := 20
+	fixed := 2 + 2 + 2 + 2 + timeW + 2 + proj
+	remaining := width - fixed
+	loc := 35
+	if loc > remaining*2/5 {
+		loc = remaining * 2 / 5
+	}
+	if loc < 15 {
+		loc = 15
+	}
+	task := remaining - loc
+	if task < 12 {
+		task = 12
+	}
+	return cols{loc: loc, task: task, timeW: timeW, proj: proj}
+}
+
+// ── Msgs ──────────────────────────────────────────────────────────────────────
 
 type previewMsg string
 
 func fetchPreview(target string) tea.Cmd {
 	return func() tea.Msg {
-		b, err := exec.Command(tmuxBin, "capture-pane", "-p", "-t", target, "-S", "-15").Output()
+		b, err := exec.Command(tmuxBin, "capture-pane", "-p", "-e", "-t", target, "-S", "-12").Output()
 		if err != nil {
 			return previewMsg("")
 		}
@@ -216,10 +225,12 @@ func fetchPreview(target string) tea.Cmd {
 	}
 }
 
+// ── Model ─────────────────────────────────────────────────────────────────────
+
 type model struct {
 	list     list.Model
 	marked   map[string]bool
-	cols     colWidths
+	c        cols
 	width    int
 	height   int
 	preview  string
@@ -229,44 +240,33 @@ type model struct {
 
 var (
 	sFooter  = lipgloss.NewStyle().Foreground(lipgloss.Color("241"))
-	sPreview = lipgloss.NewStyle().Foreground(lipgloss.Color("240")).Padding(0, 1)
-	sBorder  = lipgloss.NewStyle().
+	sPreview = lipgloss.NewStyle().Foreground(lipgloss.Color("240")).PaddingLeft(1)
+	sPrvBox  = lipgloss.NewStyle().
 			Border(lipgloss.RoundedBorder()).
-			BorderForeground(lipgloss.Color("240"))
+			BorderForeground(lipgloss.Color("238"))
 )
 
-func computeCols(width int) colWidths {
-	// prefix(2) + indicator(2) + loc + "  " + title + "  " + time(9) + "  " + proj(18)
-	// overhead = 2+2+2+2+2 = 10 fixed, + 9 + 18 = 37 total non-loc/title
-	loc := 30
-	proj := 18
-	timeW := 9
-	overhead := 2 + 2 + loc + 2 + 2 + timeW + 2 + proj
-	title := width - overhead
-	if title < 12 {
-		title = 12
-	}
-	if title > 55 {
-		title = 55
-	}
-	return colWidths{loc: loc, title: title, timeW: timeW, proj: proj}
-}
-
 func newModel(notifications []Notification, width, height int) model {
-	cols := computeCols(width)
+	c := makeCols(width)
 	marked := make(map[string]bool)
-	d := newDelegate(cols, marked)
 
 	items := make([]list.Item, len(notifications))
 	for i, n := range notifications {
 		items[i] = n
 	}
 
-	l := list.New(items, d, width, height-5)
+	previewH := 8
+	listH := height - previewH - 3 // footer + borders
+	if listH < 5 {
+		listH = 5
+	}
+
+	l := list.New(items, itemDelegate{c: c, marked: marked}, width, listH)
 	l.Title = "Claude Notifications"
 	l.SetShowStatusBar(true)
 	l.SetFilteringEnabled(true)
-	l.Styles.Title = lipgloss.NewStyle().Foreground(lipgloss.Color("212")).Bold(true).Padding(0, 1)
+	l.Styles.Title = lipgloss.NewStyle().
+		Foreground(lipgloss.Color("212")).Bold(true).Padding(0, 1)
 	l.AdditionalShortHelpKeys = func() []key.Binding {
 		return []key.Binding{
 			key.NewBinding(key.WithKeys("tab"), key.WithHelp("tab", "mark")),
@@ -274,7 +274,8 @@ func newModel(notifications []Notification, width, height int) model {
 		}
 	}
 
-	return model{list: l, marked: marked, cols: cols, width: width, height: height}
+	m := model{list: l, marked: marked, c: c, width: width, height: height}
+	return m
 }
 
 func (m model) Init() tea.Cmd {
@@ -284,17 +285,32 @@ func (m model) Init() tea.Cmd {
 	return nil
 }
 
+func (m model) reload() model {
+	notifications := loadNotifications()
+	items := make([]list.Item, len(notifications))
+	for i, n := range notifications {
+		items[i] = n
+	}
+	m.list.SetItems(items)
+	m.list.SetDelegate(itemDelegate{c: m.c, marked: m.marked})
+	return m
+}
+
 func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 
 	case tea.WindowSizeMsg:
 		m.width = msg.Width
 		m.height = msg.Height
-		m.cols = computeCols(msg.Width)
-		previewH := 6
+		m.c = makeCols(msg.Width)
+		previewH := 8
+		listH := msg.Height - previewH - 3
+		if listH < 5 {
+			listH = 5
+		}
 		m.list.SetWidth(msg.Width)
-		m.list.SetHeight(msg.Height - previewH - 3)
-		m.list.SetDelegate(newDelegate(m.cols, m.marked))
+		m.list.SetHeight(listH)
+		m.list.SetDelegate(itemDelegate{c: m.c, marked: m.marked})
 		return m, nil
 
 	case previewMsg:
@@ -305,17 +321,14 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if m.list.FilterState() == list.Filtering {
 			break
 		}
-
 		switch msg.String() {
 		case "ctrl+c", "esc":
 			m.quitting = true
 			return m, tea.Quit
 
 		case "q":
-			if m.list.FilterState() != list.Filtering {
-				m.quitting = true
-				return m, tea.Quit
-			}
+			m.quitting = true
+			return m, tea.Quit
 
 		case "enter":
 			if item, ok := m.list.SelectedItem().(Notification); ok {
@@ -332,7 +345,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				} else {
 					m.marked[item.target] = true
 				}
-				m.list.SetDelegate(newDelegate(m.cols, m.marked))
+				m.list.SetDelegate(itemDelegate{c: m.c, marked: m.marked})
 				m.list.CursorDown()
 			}
 			return m, nil
@@ -350,17 +363,13 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				exec.Command(deleteScr, t).Run()
 				delete(m.marked, t)
 			}
-			// Reload
-			notifications := loadNotifications()
-			items := make([]list.Item, len(notifications))
-			for i, n := range notifications {
-				items[i] = n
-			}
-			m.list.SetItems(items)
-			m.list.SetDelegate(newDelegate(m.cols, m.marked))
-			if len(notifications) == 0 {
+			m = m.reload()
+			if len(m.list.Items()) == 0 {
 				m.quitting = true
 				return m, tea.Quit
+			}
+			if item, ok := m.list.SelectedItem().(Notification); ok {
+				return m, fetchPreview(item.target)
 			}
 			return m, nil
 		}
@@ -382,22 +391,21 @@ func (m model) View() string {
 		return ""
 	}
 
-	// Preview panel
-	previewLines := strings.Split(m.preview, "\n")
-	// take last 5 non-empty lines
-	var filtered []string
-	for _, l := range previewLines {
+	// Preview: last few non-empty lines
+	lines := strings.Split(m.preview, "\n")
+	var kept []string
+	for _, l := range lines {
 		if strings.TrimSpace(l) != "" {
-			filtered = append(filtered, l)
+			kept = append(kept, l)
 		}
 	}
-	if len(filtered) > 5 {
-		filtered = filtered[len(filtered)-5:]
+	if len(kept) > 6 {
+		kept = kept[len(kept)-6:]
 	}
-	previewContent := strings.Join(filtered, "\n")
-	preview := sBorder.Width(m.width - 2).Render(sPreview.Render(previewContent))
+	prvContent := sPreview.Render(strings.Join(kept, "\n"))
+	preview := sPrvBox.Width(m.width - 4).Render(prvContent)
 
-	footer := sFooter.Render(" enter: switch  ·  tab: mark  ·  ctrl+d: dismiss  ·  /: filter  ·  q: quit")
+	footer := sFooter.Render("  enter:switch  tab:mark  ctrl+d:dismiss  /:filter  q:quit")
 
 	return m.list.View() + "\n" + preview + "\n" + footer
 }
@@ -417,9 +425,15 @@ func main() {
 			width = n * 70 / 100
 		}
 	}
+	height := 40
+	if h := os.Getenv("TMUX_CLIENT_HEIGHT"); h != "" {
+		if n, err := strconv.Atoi(h); err == nil {
+			height = n * 50 / 100
+		}
+	}
 
 	p := tea.NewProgram(
-		newModel(notifications, width, 30),
+		newModel(notifications, width, height),
 		tea.WithAltScreen(),
 	)
 
@@ -428,7 +442,8 @@ func main() {
 		os.Exit(1)
 	}
 
+	// Print target+client to stdout — shell wrapper handles the actual switch
 	if fm, ok := result.(model); ok && fm.switchTo != nil {
-		exec.Command(switchScr, fm.switchTo.target, fm.switchTo.client).Run()
+		fmt.Printf("%s\t%s\n", fm.switchTo.target, fm.switchTo.client)
 	}
 }
