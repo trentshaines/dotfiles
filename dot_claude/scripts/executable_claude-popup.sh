@@ -13,10 +13,10 @@ if [[ -f "$QUEUE" ]]; then
     done < "$QUEUE"
 fi
 
-# gum filter chrome: 1 input + 1 header + 1 border-top + 1 border-bottom = 4
-HEIGHT=$(( COUNT + 4 ))
-(( HEIGHT < 6  )) && HEIGHT=6
-(( HEIGHT > 30 )) && HEIGHT=30
+# gum filter chrome: prompt + header = 2; cap results at 10
+RESULTS=$(( COUNT < 10 ? COUNT : 10 ))
+HEIGHT=$(( RESULTS + 4 ))
+(( HEIGHT < 6 )) && HEIGHT=6
 
 tmux display-popup -E \
     -w 70% \

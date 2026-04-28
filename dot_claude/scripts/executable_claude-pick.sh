@@ -50,8 +50,7 @@ done < <(sort -t$'\t' -k1,1rn "$QUEUE_FILE")
 python3 "$FMT" "$TABLE" "$cols" > "$WORK/display.txt"
 
 ROW_COUNT=$(wc -l < "$WORK/display.txt")
-HEIGHT=$(( ROW_COUNT + 3 ))
-(( HEIGHT > 20 )) && HEIGHT=20
+HEIGHT=$(( ROW_COUNT < 10 ? ROW_COUNT : 10 ))
 
 SELECTED=$(gum filter \
     --no-limit \
