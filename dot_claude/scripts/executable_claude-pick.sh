@@ -45,7 +45,7 @@ done < <(sort -t$'\t' -k1,1rn "$QUEUE_FILE")
 
 # Step 1: gum filter — fuzzy search, tab for multi-select
 DISPLAY_FILE="$WORK/display.txt"
-cut -f1,2,4 "$TABLE" | awk -F'\t' '{printf "%-40s %-30s %s\n", $1, $2, $3}' > "$DISPLAY_FILE"
+awk -F'\t' '{printf "%-40s %-35s %-10s %s\n", $1, $2, $3, $4}' "$TABLE" > "$DISPLAY_FILE"
 
 ROW_COUNT=$(wc -l < "$DISPLAY_FILE")
 HEIGHT=$(( ROW_COUNT + 3 ))  # +3 for input line, header, padding
