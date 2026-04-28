@@ -442,8 +442,8 @@ func main() {
 		os.Exit(1)
 	}
 
-	// Print target+client to stdout — shell wrapper handles the actual switch
-	if fm, ok := result.(model); ok && fm.switchTo != nil {
-		fmt.Printf("%s\t%s\n", fm.switchTo.target, fm.switchTo.client)
+	// Write target+client to result file — shell wrapper handles the switch after popup closes
+	if fm, ok := result.(model); ok && fm.switchTo != nil && len(os.Args) > 1 {
+		os.WriteFile(os.Args[1], []byte(fm.switchTo.target+"\t"+fm.switchTo.client+"\n"), 0600)
 	}
 }
