@@ -18,8 +18,10 @@ HEIGHT=$(( COUNT + 4 ))
 (( HEIGHT < 6  )) && HEIGHT=6
 (( HEIGHT > 30 )) && HEIGHT=30
 
+MODE="${1:-switch}"
+
 tmux display-popup -E \
     -w 70% \
     -h "$HEIGHT" \
     -e "TMUX_CLIENT_WIDTH=$CLIENT_WIDTH" \
-    "/bin/bash $HOME/.claude/scripts/claude-pick.sh"
+    "/bin/bash $HOME/.claude/scripts/claude-pick.sh $MODE"
