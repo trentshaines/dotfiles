@@ -189,7 +189,7 @@ type previewMsg string
 
 func fetchPreview(target string) tea.Cmd {
 	return func() tea.Msg {
-		b, err := exec.Command(tmuxBin, "capture-pane", "-p", "-e", "-t", target, "-S", "-12").Output()
+		b, err := exec.Command(tmuxBin, "capture-pane", "-p", "-e", "-t", target, "-S", "-25").Output()
 		if err != nil {
 			return previewMsg("")
 		}
@@ -217,7 +217,7 @@ func newModel(notifications []Notification, width, height int) model {
 		items[i] = n
 	}
 
-	previewH := 8
+	previewH := 12
 	listH := height - previewH - 3
 	if listH < 5 {
 		listH = 5
@@ -266,7 +266,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.WindowSizeMsg:
 		m.width, m.height = msg.Width, msg.Height
 		m.c = makeCols(msg.Width)
-		previewH := 8
+		previewH := 12
 		listH := msg.Height - previewH - 3
 		if listH < 5 {
 			listH = 5
@@ -353,8 +353,8 @@ func (m model) View() string {
 			kept = append(kept, l)
 		}
 	}
-	if len(kept) > 6 {
-		kept = kept[len(kept)-6:]
+	if len(kept) > 10 {
+		kept = kept[len(kept)-10:]
 	}
 	preview := ui.SBorder.Width(m.width - 4).Render(
 		ui.SPreview.Render(strings.Join(kept, "\n")),
