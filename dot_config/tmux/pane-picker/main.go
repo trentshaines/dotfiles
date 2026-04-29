@@ -220,11 +220,11 @@ func newModel(panes []Pane, width, height int) model {
 	l.Styles.FilterCursor = lipgloss.NewStyle().Foreground(ui.Yellow)
 	l.Styles.NoItems = ui.SDim.Padding(1, 2)
 
+	l.SetFilterState(list.Filtering)
 	return model{list: l, c: c, width: width, height: height}
 }
 
 func (m model) Init() tea.Cmd {
-	m.list.SetFilterState(list.Filtering)
 	if p, ok := m.list.SelectedItem().(Pane); ok {
 		return fetchPreview(p.id)
 	}
