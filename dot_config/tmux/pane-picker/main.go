@@ -136,7 +136,9 @@ func (d itemDelegate) Render(w io.Writer, m list.Model, index int, item list.Ite
 	sel := index == m.Index()
 
 	marker := "  "
-	if p.active {
+	if sel {
+		marker = lipgloss.NewStyle().Foreground(ui.Highlight).Bold(true).Render("❯ ")
+	} else if p.active {
 		marker = ui.SActive.Render("▶ ")
 	}
 
