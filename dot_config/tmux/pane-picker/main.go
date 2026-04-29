@@ -321,7 +321,7 @@ func (m model) View() string {
 	if len(kept) > 10 {
 		kept = kept[len(kept)-10:]
 	}
-	preview := ui.SBorder.Width(m.width - 2).Render(ui.SPreview.Render(strings.Join(kept, "\n")))
+	preview := ui.SBorder.MarginLeft(1).Width(m.width - 4).Render(ui.SPreview.Render(strings.Join(kept, "\n")))
 	footer := ui.SFooter.Render("  enter:switch  esc:clear/quit  ↑↓:navigate")
 
 	return title + "\n" + prompt + "\n" + m.list.View() + "\n" + preview + "\n" + footer

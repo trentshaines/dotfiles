@@ -358,7 +358,7 @@ func (m model) View() string {
 	if len(kept) > 10 {
 		kept = kept[len(kept)-10:]
 	}
-	preview := ui.SBorder.Width(m.width - 2).Render(
+	preview := ui.SBorder.MarginLeft(1).Width(m.width - 4).Render(
 		ui.SPreview.Render(strings.Join(kept, "\n")),
 	)
 	footer := ui.SFooter.Render("  enter:switch  tab:mark  ctrl+d:dismiss  /:filter  q:quit")
