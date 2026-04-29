@@ -37,6 +37,7 @@ var (
 	Border    = lipgloss.Color("#3b3d57") // internal borders (subtle)
 	Inactive  = lipgloss.Color("#414868") // inactive elements
 	Highlight = lipgloss.Color("#fff2cc") // matches tmux status bar highlight
+	TmuxPink  = lipgloss.Color("#ff10f0") // tmux prefix-pressed magenta
 )
 
 // ── Semantic aliases ──────────────────────────────────────────────────────────
@@ -66,7 +67,7 @@ var (
 	SSubtle   = lipgloss.NewStyle().Foreground(Violet)
 	STitle    = lipgloss.NewStyle().Foreground(Yellow).Bold(true)
 	SFooter   = lipgloss.NewStyle().Foreground(Inactive)
-	SBorder   = lipgloss.NewStyle().Border(lipgloss.RoundedBorder()).BorderForeground(Highlight)
+	SBorder   = lipgloss.NewStyle().Border(lipgloss.NormalBorder()).BorderForeground(lipgloss.Color("#ffffff"))
 	SPreview  = lipgloss.NewStyle().Foreground(FGDim).PaddingLeft(1)
 )
 
