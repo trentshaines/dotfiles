@@ -137,9 +137,9 @@ func (d itemDelegate) Render(w io.Writer, m list.Model, index int, item list.Ite
 
 	marker := "  "
 	if sel {
-		marker = lipgloss.NewStyle().Foreground(ui.TmuxPink).Bold(true).Render("❯ ")
+		marker = ui.Caret()
 	} else if p.active {
-		marker = ui.SActive.Render("▶ ")
+		marker = ui.ActiveMark()
 	}
 
 	loc := p.session + " → " + p.winName + " (" + p.pane + ")"
@@ -191,18 +191,12 @@ type model struct {
 	quitting bool
 }
 
-var sInput = lipgloss.NewStyle().Foreground(ui.TmuxPink).Bold(true)
 
 func newModel(panes []Pane, width, height int) model {
 	c := makeCols(width)
 
 	// Text input for search
-	ti := textinput.New()
-	ti.Placeholder = "search panes…"
-	ti.PlaceholderStyle = ui.SDim
-	ti.TextStyle = ui.SBright
-	ti.Cursor.Style = lipgloss.NewStyle().Foreground(ui.Highlight)
-	ti.Focus()
+	ti := ui.NewSearchInput("search panes…")
 
 	// List (no built-in filtering — we handle it)
 	items := panesToItems(panes)
@@ -309,20 +303,10 @@ func (m model) View() string {
 
 	title := ui.SolidTitle(m.width).Render("All Panes")
 
-	prompt := sInput.Render("  ❯ ") + m.input.View()
+	prompt := ui.SearchPrompt(m.input)
 
-	lines := strings.Split(m.preview, "\n")
-	var kept []string
-	for _, l := range lines {
-		if strings.TrimSpace(l) != "" {
-			kept = append(kept, l)
-		}
-	}
-	if len(kept) > 10 {
-		kept = kept[len(kept)-10:]
-	}
-	preview := ui.SBorder.MarginLeft(1).Width(m.width - 4).Render(ui.SPreview.Render(strings.Join(kept, "\n")))
-	footer := ui.SFooter.Render("  enter:switch  esc:clear/quit  ↑↓:navigate")
+	preview := ui.PreviewBox(m.preview, m.width, 10)
+	footer := ui.Footer("enter:switch", "esc:clear/quit", "↑↓:navigate")
 
 	return title + "\n" + prompt + "\n" + m.list.View() + "\n" + preview + "\n" + footer
 }

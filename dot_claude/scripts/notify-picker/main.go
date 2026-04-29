@@ -223,13 +223,10 @@ func newModel(notifications []Notification, width, height int) model {
 		listH = 5
 	}
 
-	l := list.New(items, itemDelegate{c: c, marked: marked}, width, listH)
-	l.Title = "Agent Notifications"
+	l := ui.NewSolidTitleList("Agent Notifications", items, itemDelegate{c: c, marked: marked}, width, listH)
 	l.SetShowStatusBar(true)
 	l.SetStatusBarItemName("notification", "pending notifications")
 	l.SetFilteringEnabled(true)
-	l.Styles.TitleBar = lipgloss.NewStyle()
-	l.Styles.Title = ui.SolidTitle(width)
 	l.Styles.FilterPrompt = lipgloss.NewStyle().Foreground(ui.Yellow)
 	l.Styles.FilterCursor = lipgloss.NewStyle().Foreground(ui.Yellow)
 	l.Styles.NoItems = ui.SDim.Padding(1, 2)
@@ -348,20 +345,8 @@ func (m model) View() string {
 		return ""
 	}
 
-	lines := strings.Split(m.preview, "\n")
-	var kept []string
-	for _, l := range lines {
-		if strings.TrimSpace(l) != "" {
-			kept = append(kept, l)
-		}
-	}
-	if len(kept) > 10 {
-		kept = kept[len(kept)-10:]
-	}
-	preview := ui.SBorder.MarginLeft(1).Width(m.width - 4).Render(
-		ui.SPreview.Render(strings.Join(kept, "\n")),
-	)
-	footer := ui.SFooter.Render("  enter:switch  tab:mark  ctrl+d:dismiss  /:filter  q:quit")
+	preview := ui.PreviewBox(m.preview, m.width, 10)
+	footer := ui.Footer("enter:switch", "tab:mark", "ctrl+d:dismiss", "/:filter", "q:quit")
 
 	return m.list.View() + "\n" + preview + "\n" + footer
 }
