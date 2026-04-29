@@ -277,7 +277,6 @@ type model struct {
 }
 
 func newModel(notifications []Notification, width, height int) model {
-	c := makeCols(width)
 	marked := make(map[string]bool)
 
 	items := make([]list.Item, len(notifications))
@@ -290,6 +289,7 @@ func newModel(notifications []Notification, width, height int) model {
 	if listH < 5 {
 		listH = 5
 	}
+	c := makeCols(listW)
 
 	l := ui.NewList(items, itemDelegate{c: c, marked: marked}, listW, listH)
 	l.SetShowTitle(false)
@@ -444,6 +444,7 @@ func main() {
 	p := tea.NewProgram(newModel(notifications, width, height), tea.WithAltScreen())
 	result, err := p.Run()
 	if err != nil {
+		os.WriteFile("/tmp/agent-picker-err.txt", []byte(err.Error()+"\n"), 0644)
 		os.Exit(1)
 	}
 
