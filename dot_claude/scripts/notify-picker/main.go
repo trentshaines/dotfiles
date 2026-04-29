@@ -228,7 +228,12 @@ func newModel(notifications []Notification, width, height int) model {
 	l.SetShowStatusBar(true)
 	l.SetStatusBarItemName("notification", "pending notifications")
 	l.SetFilteringEnabled(true)
-	l.Styles.Title = ui.STitle
+	l.Styles.Title = lipgloss.NewStyle().
+		Background(ui.Yellow).
+		Foreground(ui.BG).
+		Bold(true).
+		Padding(0, 1).
+		Width(width)
 	l.Styles.FilterPrompt = lipgloss.NewStyle().Foreground(ui.Yellow)
 	l.Styles.FilterCursor = lipgloss.NewStyle().Foreground(ui.Yellow)
 	l.Styles.NoItems = ui.SDim.Padding(1, 2)
@@ -274,6 +279,12 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.list.SetWidth(msg.Width)
 		m.list.SetHeight(listH)
 		m.list.SetDelegate(itemDelegate{c: m.c, marked: m.marked})
+		m.list.Styles.Title = lipgloss.NewStyle().
+			Background(ui.Yellow).
+			Foreground(ui.BG).
+			Bold(true).
+			Padding(0, 1).
+			Width(msg.Width)
 		return m, nil
 
 	case previewMsg:

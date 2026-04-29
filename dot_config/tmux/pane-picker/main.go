@@ -173,6 +173,15 @@ func (d itemDelegate) Render(w io.Writer, m list.Model, index int, item list.Ite
 	}
 }
 
+func solidTitle(width int) lipgloss.Style {
+	return lipgloss.NewStyle().
+		Background(ui.Yellow).
+		Foreground(ui.BG).
+		Bold(true).
+		Padding(0, 1).
+		Width(width)
+}
+
 // ── Model ─────────────────────────────────────────────────────────────────────
 
 type previewMsg string
@@ -215,11 +224,21 @@ func newModel(panes []Pane, width, height int) model {
 	l.SetShowStatusBar(true)
 	l.SetFilteringEnabled(true)
 	l.SetStatusBarItemName("pane", "panes")
-	l.Styles.Title = ui.STitle
+	l.Styles.Title = solidTitle(width)
 	l.Styles.FilterPrompt = lipgloss.NewStyle().Foreground(ui.Yellow)
 	l.Styles.FilterCursor = lipgloss.NewStyle().Foreground(ui.Yellow)
 	l.Styles.NoItems = ui.SDim.Padding(1, 2)
-
+	// Show all items when filter is empty
+	l.Filter = func(term string, targets []string) []list.Rank {
+		if term == "" {
+			ranks := make([]list.Rank, len(targets))
+			for i := range targets {
+				ranks[i] = list.Rank{Index: i}
+			}
+			return ranks
+		}
+		return list.DefaultFilter(term, targets)
+	}
 	l.SetFilterState(list.Filtering)
 	return model{list: l, c: c, width: width, height: height}
 }
@@ -244,6 +263,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.list.SetWidth(msg.Width)
 		m.list.SetHeight(listH)
 		m.list.SetDelegate(itemDelegate{c: m.c})
+		m.list.Styles.Title = solidTitle(msg.Width)
 		return m, nil
 
 	case previewMsg:
