@@ -298,7 +298,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (m model) View() string {
-	if m.quitting {
+	if m.quitting || m.width == 0 {
 		return ""
 	}
 
@@ -320,7 +320,7 @@ func (m model) View() string {
 func main() {
 	panes := loadPanes()
 
-	width, height := 120, 40
+	width, height := 0, 0
 	if w := os.Getenv("TMUX_CLIENT_WIDTH"); w != "" {
 		if n, err := strconv.Atoi(w); err == nil {
 			width = n * 95 / 100
