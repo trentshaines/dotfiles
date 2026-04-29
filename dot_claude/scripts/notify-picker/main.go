@@ -421,7 +421,7 @@ func (m model) View() string {
 	body := lipgloss.JoinHorizontal(lipgloss.Top, m.list.View(), preview)
 	footer := ui.Footer("enter:switch", "tab:mark", "ctrl+d:dismiss", "/:filter", "q:quit")
 
-	return title + "\n" + body + "\n" + footer
+	return ui.FillHeight(title+"\n"+body+"\n"+footer, m.height)
 }
 
 // ── Main ──────────────────────────────────────────────────────────────────────
@@ -441,7 +441,7 @@ func main() {
 		}
 	}
 
-	p := tea.NewProgram(newModel(notifications, width, height), tea.WithAltScreen())
+	p := tea.NewProgram(newModel(notifications, width, height))
 	result, err := p.Run()
 	if err != nil {
 		os.WriteFile("/tmp/agent-picker-err.txt", []byte(err.Error()+"\n"), 0644)

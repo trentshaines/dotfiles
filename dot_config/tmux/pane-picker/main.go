@@ -312,7 +312,7 @@ func (m model) View() string {
 	body := lipgloss.JoinHorizontal(lipgloss.Top, m.list.View(), preview)
 	footer := ui.Footer("enter:switch", "esc:clear/quit", "↑↓:navigate")
 
-	return title + "\n" + prompt + "\n" + body + "\n" + footer
+	return ui.FillHeight(title+"\n"+prompt+"\n"+body+"\n"+footer, m.height)
 }
 
 // ── Main ──────────────────────────────────────────────────────────────────────
@@ -332,7 +332,7 @@ func main() {
 		}
 	}
 
-	p := tea.NewProgram(newModel(panes, width, height), tea.WithAltScreen())
+	p := tea.NewProgram(newModel(panes, width, height))
 	result, err := p.Run()
 	if err != nil {
 		os.Exit(1)
