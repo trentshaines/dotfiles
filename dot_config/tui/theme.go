@@ -36,7 +36,7 @@ var (
 	Comment   = lipgloss.Color("#565f89") // muted / done
 	Border    = lipgloss.Color("#3b3d57") // borders
 	Inactive  = lipgloss.Color("#414868") // inactive elements
-	Highlight = lipgloss.Color("#fff2cc") // tmux/UI highlight yellow (cream)
+	Highlight = lipgloss.Color("11") // ANSI bright yellow — adapts to terminal theme
 )
 
 // ── Semantic aliases ──────────────────────────────────────────────────────────

@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/charmbracelet/bubbles/list"
+	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 	ui "trenthaines.dev/tui"
@@ -19,24 +20,20 @@ var tmuxBin = "/opt/homebrew/bin/tmux"
 // ── Data ──────────────────────────────────────────────────────────────────────
 
 type Pane struct {
-	id      string // %42
+	id      string
 	session string
-	window  string // index
+	window  string
 	winName string
-	pane    string // index
+	pane    string
 	command string
 	title   string
 	path    string
 	active  bool
 }
 
-func (p Pane) FilterValue() string {
-	return p.session + " " + p.winName + " " + p.command + " " + p.title + " " + p.shortPath()
-}
+func (p Pane) FilterValue() string { return "" } // unused — we filter manually
 func (p Pane) Title() string       { return p.title }
 func (p Pane) Description() string { return p.session }
-
-func (p Pane) target() string { return p.session + ":" + p.window + "." + p.pane }
 
 func (p Pane) shortPath() string {
 	home := os.Getenv("HOME")
@@ -44,26 +41,22 @@ func (p Pane) shortPath() string {
 	if s != p.path {
 		s = "~" + s
 	}
-	// Shorten to last 2 path components
 	parts := strings.Split(strings.Trim(s, "/"), "/")
 	if len(parts) > 2 {
-		parts = parts[len(parts)-2:]
-		s = "…/" + strings.Join(parts, "/")
+		s = "…/" + strings.Join(parts[len(parts)-2:], "/")
 	}
 	return s
 }
 
+func (p Pane) searchText() string {
+	return strings.ToLower(p.session + " " + p.winName + " " + p.command + " " + p.title + " " + p.shortPath())
+}
+
 func loadPanes() []Pane {
 	format := strings.Join([]string{
-		"#{pane_id}",
-		"#{pane_active}",
-		"#{session_name}",
-		"#{window_index}",
-		"#{window_name}",
-		"#{pane_index}",
-		"#{pane_current_command}",
-		"#{pane_title}",
-		"#{pane_current_path}",
+		"#{pane_id}", "#{pane_active}", "#{session_name}",
+		"#{window_index}", "#{window_name}", "#{pane_index}",
+		"#{pane_current_command}", "#{pane_title}", "#{pane_current_path}",
 	}, "\t")
 
 	b, err := exec.Command(tmuxBin, "list-panes", "-a", "-F", format).Output()
@@ -82,18 +75,26 @@ func loadPanes() []Pane {
 			title = strings.TrimPrefix(title, pfx)
 		}
 		panes = append(panes, Pane{
-			id:      parts[0],
-			active:  parts[1] == "1",
-			session: parts[2],
-			window:  parts[3],
-			winName: parts[4],
-			pane:    parts[5],
-			command: parts[6],
-			title:   title,
-			path:    parts[8],
+			id: parts[0], active: parts[1] == "1",
+			session: parts[2], window: parts[3], winName: parts[4],
+			pane: parts[5], command: parts[6], title: title, path: parts[8],
 		})
 	}
 	return panes
+}
+
+func filterPanes(panes []Pane, query string) []Pane {
+	if query == "" {
+		return panes
+	}
+	q := strings.ToLower(query)
+	var out []Pane
+	for _, p := range panes {
+		if strings.Contains(p.searchText(), q) {
+			out = append(out, p)
+		}
+	}
+	return out
 }
 
 // ── Columns ───────────────────────────────────────────────────────────────────
@@ -102,8 +103,7 @@ type cols struct{ loc, cmd, detail int }
 
 func makeCols(width int) cols {
 	w := width - 4
-	loc := 28
-	cmd := 14
+	loc, cmd := 28, 14
 	detail := w - 2 - 2 - loc - 2 - 2 - cmd - 2
 	if detail < 10 {
 		detail = 10
@@ -119,24 +119,13 @@ func (d itemDelegate) Height() int                              { return 1 }
 func (d itemDelegate) Spacing() int                             { return 0 }
 func (d itemDelegate) Update(_ tea.Msg, _ *list.Model) tea.Cmd { return nil }
 
-var sCmdMap = map[string]lipgloss.Style{
-	"nvim":   lipgloss.NewStyle().Foreground(ui.Green),
-	"claude": lipgloss.NewStyle().Foreground(ui.Cyan),
-	"node":   lipgloss.NewStyle().Foreground(ui.Yellow),
-	"python": lipgloss.NewStyle().Foreground(ui.Blue),
-	"python3": lipgloss.NewStyle().Foreground(ui.Blue),
-	"go":     lipgloss.NewStyle().Foreground(ui.Teal),
-	"fish":   lipgloss.NewStyle().Foreground(ui.FGDim),
-	"bash":   lipgloss.NewStyle().Foreground(ui.FGDim),
-	"zsh":    lipgloss.NewStyle().Foreground(ui.FGDim),
-	"ssh":    lipgloss.NewStyle().Foreground(ui.Orange),
-}
-
-func cmdStyle(cmd string) lipgloss.Style {
-	if s, ok := sCmdMap[cmd]; ok {
-		return s
-	}
-	return ui.SNormal
+var cmdColors = map[string]lipgloss.Color{
+	"nvim": ui.Green, "vim": ui.Green,
+	"claude": ui.Cyan,
+	"node":   ui.Yellow,
+	"python": ui.Blue, "python3": ui.Blue,
+	"go":  ui.Teal,
+	"ssh": ui.Orange,
 }
 
 func (d itemDelegate) Render(w io.Writer, m list.Model, index int, item list.Item) {
@@ -158,16 +147,17 @@ func (d itemDelegate) Render(w io.Writer, m list.Model, index int, item list.Ite
 	}
 
 	if sel {
-		line := marker +
-			ui.Pad(loc, d.c.loc) + "  " +
-			ui.Pad(p.command, d.c.cmd) + "  " +
-			ui.Trunc(detail, d.c.detail)
+		line := marker + ui.Pad(loc, d.c.loc) + "  " + ui.Pad(p.command, d.c.cmd) + "  " + ui.Trunc(detail, d.c.detail)
 		fmt.Fprint(w, ui.SSelected.Render(line))
 	} else {
+		cmdSty := ui.SNormal
+		if c, ok := cmdColors[p.command]; ok {
+			cmdSty = lipgloss.NewStyle().Foreground(c)
+		}
 		fmt.Fprint(w,
 			marker+
 				ui.SNormal.Render(ui.Pad(loc, d.c.loc))+"  "+
-				cmdStyle(p.command).Render(ui.Pad(p.command, d.c.cmd))+"  "+
+				cmdSty.Render(ui.Pad(p.command, d.c.cmd))+"  "+
 				ui.SDim.Render(ui.Trunc(detail, d.c.detail)),
 		)
 	}
@@ -188,58 +178,61 @@ func fetchPreview(id string) tea.Cmd {
 }
 
 type model struct {
+	input    textinput.Model
 	list     list.Model
+	allPanes []Pane
 	c        cols
 	width    int
 	height   int
 	preview  string
-	switchTo string // pane id
+	switchTo string
 	quitting bool
 }
 
+var sInput = lipgloss.NewStyle().Foreground(ui.Highlight).Bold(true)
+
 func newModel(panes []Pane, width, height int) model {
 	c := makeCols(width)
-	items := make([]list.Item, len(panes))
-	for i, p := range panes {
-		items[i] = p
-	}
 
+	// Text input for search
+	ti := textinput.New()
+	ti.Placeholder = "search panes…"
+	ti.PlaceholderStyle = ui.SDim
+	ti.TextStyle = ui.SBright
+	ti.Cursor.Style = lipgloss.NewStyle().Foreground(ui.Highlight)
+	ti.Focus()
+
+	// List (no built-in filtering — we handle it)
+	items := panesToItems(panes)
 	previewH := 12
-	listH := height - previewH - 3
+	listH := height - previewH - 4 // -4: title + input + footer + border
 	if listH < 5 {
 		listH = 5
 	}
 
 	l := list.New(items, itemDelegate{c: c}, width, listH)
-	l.Title = "All Panes"
-	l.SetShowStatusBar(true)
-	l.SetFilteringEnabled(true)
-	l.SetStatusBarItemName("pane", "panes")
-	l.Styles.TitleBar = lipgloss.NewStyle()
-	l.Styles.Title = ui.SolidTitle(width)
-	l.Styles.FilterPrompt = lipgloss.NewStyle().Foreground(ui.Yellow)
-	l.Styles.FilterCursor = lipgloss.NewStyle().Foreground(ui.Yellow)
+	l.SetShowTitle(false)
+	l.SetShowStatusBar(false)
+	l.SetFilteringEnabled(false)
+	l.SetShowHelp(false)
 	l.Styles.NoItems = ui.SDim.Padding(1, 2)
-	// Show all items when filter is empty
-	l.Filter = func(term string, targets []string) []list.Rank {
-		if term == "" {
-			ranks := make([]list.Rank, len(targets))
-			for i := range targets {
-				ranks[i] = list.Rank{Index: i}
-			}
-			return ranks
-		}
-		return list.DefaultFilter(term, targets)
+
+	return model{input: ti, list: l, allPanes: panes, c: c, width: width, height: height}
+}
+
+func panesToItems(panes []Pane) []list.Item {
+	items := make([]list.Item, len(panes))
+	for i, p := range panes {
+		items[i] = p
 	}
-	l.SetFilterState(list.Filtering)
-	return model{list: l, c: c, width: width, height: height}
+	return items
 }
 
 func (m model) Init() tea.Cmd {
 	if p, ok := m.list.SelectedItem().(Pane); ok {
-		return fetchPreview(p.id)
+		return tea.Batch(textinput.Blink, fetchPreview(p.id))
 	}
-	return nil
+	return textinput.Blink
 }
 
 func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
@@ -248,14 +241,13 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.width, m.height = msg.Width, msg.Height
 		m.c = makeCols(msg.Width)
 		previewH := 12
-		listH := msg.Height - previewH - 3
+		listH := msg.Height - previewH - 4
 		if listH < 5 {
 			listH = 5
 		}
 		m.list.SetWidth(msg.Width)
 		m.list.SetHeight(listH)
 		m.list.SetDelegate(itemDelegate{c: m.c})
-		m.list.Styles.Title = ui.SolidTitle(msg.Width)
 		return m, nil
 
 	case previewMsg:
@@ -263,11 +255,17 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, nil
 
 	case tea.KeyMsg:
-		if m.list.FilterState() == list.Filtering {
-			break
-		}
 		switch msg.String() {
-		case "ctrl+c", "q":
+		case "ctrl+c":
+			m.quitting = true
+			return m, tea.Quit
+		case "esc":
+			if m.input.Value() != "" {
+				m.input.SetValue("")
+				filtered := filterPanes(m.allPanes, "")
+				m.list.SetItems(panesToItems(filtered))
+				return m, nil
+			}
 			m.quitting = true
 			return m, tea.Quit
 		case "enter":
@@ -276,24 +274,40 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.quitting = true
 				return m, tea.Quit
 			}
+		case "up", "down":
+			prevIdx := m.list.Index()
+			var cmd tea.Cmd
+			m.list, cmd = m.list.Update(msg)
+			if m.list.Index() != prevIdx {
+				if p, ok := m.list.SelectedItem().(Pane); ok {
+					return m, tea.Batch(cmd, fetchPreview(p.id))
+				}
+			}
+			return m, cmd
+		default:
+			// All other keys go to the text input
+			var cmd tea.Cmd
+			m.input, cmd = m.input.Update(msg)
+			filtered := filterPanes(m.allPanes, m.input.Value())
+			m.list.SetItems(panesToItems(filtered))
+			if p, ok := m.list.SelectedItem().(Pane); ok {
+				return m, tea.Batch(cmd, fetchPreview(p.id))
+			}
+			return m, cmd
 		}
 	}
 
-	prevIdx := m.list.Index()
-	var cmd tea.Cmd
-	m.list, cmd = m.list.Update(msg)
-	if m.list.Index() != prevIdx {
-		if p, ok := m.list.SelectedItem().(Pane); ok {
-			return m, tea.Batch(cmd, fetchPreview(p.id))
-		}
-	}
-	return m, cmd
+	return m, nil
 }
 
 func (m model) View() string {
 	if m.quitting {
 		return ""
 	}
+
+	title := ui.SolidTitle(m.width).Render("All Panes")
+
+	prompt := sInput.Render("  ❯ ") + m.input.View()
 
 	lines := strings.Split(m.preview, "\n")
 	var kept []string
@@ -305,11 +319,10 @@ func (m model) View() string {
 	if len(kept) > 10 {
 		kept = kept[len(kept)-10:]
 	}
-	preview := ui.SBorder.Width(m.width - 4).Render(
-		ui.SPreview.Render(strings.Join(kept, "\n")),
-	)
-	footer := ui.SFooter.Render("  enter:switch  esc:clear filter  q:quit")
-	return m.list.View() + "\n" + preview + "\n" + footer
+	preview := ui.SBorder.Width(m.width - 4).Render(ui.SPreview.Render(strings.Join(kept, "\n")))
+	footer := ui.SFooter.Render("  enter:switch  esc:clear/quit  ↑↓:navigate")
+
+	return title + "\n" + prompt + "\n" + m.list.View() + "\n" + preview + "\n" + footer
 }
 
 // ── Main ──────────────────────────────────────────────────────────────────────
