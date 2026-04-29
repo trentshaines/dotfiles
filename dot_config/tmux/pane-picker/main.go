@@ -244,7 +244,6 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.c = makeCols(listW)
 		m.list.SetWidth(listW)
 		m.list.SetHeight(listH)
-		m.list.Select(0)
 		m.list.SetDelegate(itemDelegate{c: m.c})
 		return m, nil
 

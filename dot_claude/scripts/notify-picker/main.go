@@ -291,13 +291,13 @@ func newModel(notifications []Notification, width, height int) model {
 		listH = 5
 	}
 
-	l := ui.NewSolidTitleList("Agent Notifications", items, itemDelegate{c: c, marked: marked}, listW, listH)
-	l.Select(0)
-	l.SetShowStatusBar(true)
-	l.SetStatusBarItemName("notification", "pending notifications")
+	l := ui.NewList(items, itemDelegate{c: c, marked: marked}, listW, listH)
+	l.SetShowTitle(false)
+	l.Styles.TitleBar = lipgloss.NewStyle()
+	l.SetShowStatusBar(false)
 	l.SetFilteringEnabled(true)
-	l.Styles.FilterPrompt = lipgloss.NewStyle().Foreground(ui.Yellow)
-	l.Styles.FilterCursor = lipgloss.NewStyle().Foreground(ui.Yellow)
+	l.Styles.FilterPrompt = lipgloss.NewStyle().Foreground(ui.TmuxPink)
+	l.Styles.FilterCursor = lipgloss.NewStyle().Foreground(ui.TmuxPink)
 	l.Styles.NoItems = ui.SDim.Padding(1, 2)
 	l.AdditionalShortHelpKeys = func() []key.Binding {
 		return []key.Binding{
@@ -340,9 +340,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.c = makeCols(listW)
 		m.list.SetWidth(listW)
 		m.list.SetHeight(listH)
-		m.list.Select(0)
 		m.list.SetDelegate(itemDelegate{c: m.c, marked: m.marked})
-		m.list.Styles.Title = ui.SolidTitle(listW)
 		return m, nil
 
 	case previewMsg:
@@ -415,14 +413,15 @@ func (m model) View() string {
 		return ""
 	}
 
+	title := ui.SolidTitle(m.width).Render("Agent Notifications")
 	listW := m.width * 58 / 100
 	previewW := m.width - listW
 	listH := m.height - 3
-	preview := ui.PreviewPanel(m.preview, previewW, listH+1, 0)
+	preview := ui.PreviewPanel(m.preview, previewW, listH, 0)
 	body := lipgloss.JoinHorizontal(lipgloss.Top, m.list.View(), preview)
 	footer := ui.Footer("enter:switch", "tab:mark", "ctrl+d:dismiss", "/:filter", "q:quit")
 
-	return body + "\n" + footer
+	return title + "\n" + body + "\n" + footer
 }
 
 // ── Main ──────────────────────────────────────────────────────────────────────
