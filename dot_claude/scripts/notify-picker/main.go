@@ -119,7 +119,9 @@ func loadNotifications() []Notification {
 		if b, err := exec.Command(tmuxBin, "display-message", "-t", target, "-p", "#{pane_title}").Output(); err == nil {
 			raw = strings.TrimSpace(string(b))
 		} else {
-			continue // skip stale targets
+			// Pane gone — auto-dismiss so it never shows again
+			exec.Command(deleteScr, target).Run()
+			continue
 		}
 		done := strings.HasPrefix(raw, "✓")
 		paneTitle := raw
