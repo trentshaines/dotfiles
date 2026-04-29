@@ -152,13 +152,26 @@ func (d itemDelegate) Height() int                              { return 1 }
 func (d itemDelegate) Spacing() int                             { return 0 }
 func (d itemDelegate) Update(_ tea.Msg, _ *list.Model) tea.Cmd { return nil }
 
+// TokyoNight-based palette
 var (
-	sNormal  = lipgloss.NewStyle().Foreground(lipgloss.Color("245"))
-	sSel     = lipgloss.NewStyle().Foreground(lipgloss.Color("212")).Bold(true)
-	sMarked  = lipgloss.NewStyle().Foreground(lipgloss.Color("214"))
-	sSelMark = lipgloss.NewStyle().Foreground(lipgloss.Color("214")).Bold(true)
-	sDone    = lipgloss.NewStyle().Foreground(lipgloss.Color("240"))
-	sActive  = lipgloss.NewStyle().Foreground(lipgloss.Color("86"))
+	cYellow  = lipgloss.Color("#e0af68") // warm yellow — selected
+	cOrange  = lipgloss.Color("#ff9e64") // orange — marked for dismiss
+	cRed     = lipgloss.Color("#f7768e") // red — selected+marked
+	cTeal    = lipgloss.Color("#73daca") // teal — active/running Claude
+	cMuted   = lipgloss.Color("#565f89") // muted — done tasks
+	cBlue    = lipgloss.Color("#7aa2f7") // blue — project
+	cPurple  = lipgloss.Color("#9d7cd8") // purple — time
+	cFg      = lipgloss.Color("#a9b1d6") // normal fg
+	cComment = lipgloss.Color("#414868") // border/footer
+
+	sSel     = lipgloss.NewStyle().Foreground(cYellow).Bold(true)
+	sSelMark = lipgloss.NewStyle().Foreground(cRed).Bold(true)
+	sMarked  = lipgloss.NewStyle().Foreground(cOrange)
+	sActive  = lipgloss.NewStyle().Foreground(cTeal)
+	sDone    = lipgloss.NewStyle().Foreground(cMuted)
+	sLoc     = lipgloss.NewStyle().Foreground(cFg)
+	sTime    = lipgloss.NewStyle().Foreground(cPurple)
+	sProj    = lipgloss.NewStyle().Foreground(cBlue)
 )
 
 func (d itemDelegate) Render(w io.Writer, m list.Model, index int, item list.Item) {
@@ -178,43 +191,48 @@ func (d itemDelegate) Render(w io.Writer, m list.Model, index int, item list.Ite
 		status = "✓ "
 	}
 
-	// Columns: session→window | [pane] task | time | project
-	loc := pad(n.session+" → "+n.windowName, d.c.loc)
 	taskStr := "[" + n.paneIndex + "] " + n.paneTitle
-	task := pad(taskStr, d.c.task)
-	t := pad(n.timeAgo, d.c.timeW)
-	proj := trunc(n.project, d.c.proj)
 
-	line := marker + status + loc + "  " + task + "  " + t + "  " + proj
-
-	switch {
-	case sel && mrk:
-		fmt.Fprint(w, sSelMark.Render(line))
-	case sel:
-		fmt.Fprint(w, sSel.Render(line))
-	case mrk:
-		fmt.Fprint(w, sMarked.Render(line))
-	case n.done:
-		fmt.Fprint(w, sDone.Render(line))
-	default:
-		fmt.Fprint(w, sActive.Render(line))
+	if sel || mrk {
+		// Selected/marked: whole line one color
+		line := marker + status +
+			pad(n.session+" → "+n.windowName, d.c.loc) + "  " +
+			pad(taskStr, d.c.task) + "  " +
+			pad(n.timeAgo, d.c.timeW) + "  " +
+			trunc(n.project, d.c.proj)
+		switch {
+		case sel && mrk:
+			fmt.Fprint(w, sSelMark.Render(line))
+		case sel:
+			fmt.Fprint(w, sSel.Render(line))
+		default:
+			fmt.Fprint(w, sMarked.Render(line))
+		}
+	} else {
+		// Normal: per-column colors
+		taskStyle := sActive
+		if n.done {
+			taskStyle = sDone
+		}
+		fmt.Fprint(w,
+			marker+status+
+				sLoc.Render(pad(n.session+" → "+n.windowName, d.c.loc))+"  "+
+				taskStyle.Render(pad(taskStr, d.c.task))+"  "+
+				sTime.Render(pad(n.timeAgo, d.c.timeW))+"  "+
+				sProj.Render(trunc(n.project, d.c.proj)),
+		)
 	}
 }
 
 func makeCols(width int) cols {
-	// fixed: marker(2)+status(2)+sep(2)+sep(2)+time(9)+sep(2)+proj(20) = 39
+	// line: marker(2) + status(2) + loc + "  " + task + "  " + time + "  " + proj
+	// subtract 4 for list's own internal offset
+	w := width - 4
 	timeW := 9
 	proj := 20
-	fixed := 2 + 2 + 2 + 2 + timeW + 2 + proj
-	remaining := width - fixed
-	loc := 35
-	if loc > remaining*2/5 {
-		loc = remaining * 2 / 5
-	}
-	if loc < 15 {
-		loc = 15
-	}
-	task := remaining - loc
+	loc := 32
+	// task gets everything left
+	task := w - 2 - 2 - loc - 2 - 2 - timeW - 2 - proj
 	if task < 12 {
 		task = 12
 	}
@@ -249,11 +267,11 @@ type model struct {
 }
 
 var (
-	sFooter  = lipgloss.NewStyle().Foreground(lipgloss.Color("241"))
-	sPreview = lipgloss.NewStyle().Foreground(lipgloss.Color("240")).PaddingLeft(1)
+	sFooter  = lipgloss.NewStyle().Foreground(cComment)
+	sPreview = lipgloss.NewStyle().Foreground(cMuted).PaddingLeft(1)
 	sPrvBox  = lipgloss.NewStyle().
 			Border(lipgloss.RoundedBorder()).
-			BorderForeground(lipgloss.Color("238"))
+			BorderForeground(cComment)
 )
 
 func newModel(notifications []Notification, width, height int) model {
@@ -276,7 +294,7 @@ func newModel(notifications []Notification, width, height int) model {
 	l.SetShowStatusBar(true)
 	l.SetFilteringEnabled(true)
 	l.Styles.Title = lipgloss.NewStyle().
-		Foreground(lipgloss.Color("212")).Bold(true).Padding(0, 1)
+		Foreground(cYellow).Bold(true).Padding(0, 1)
 	l.AdditionalShortHelpKeys = func() []key.Binding {
 		return []key.Binding{
 			key.NewBinding(key.WithKeys("tab"), key.WithHelp("tab", "mark")),
