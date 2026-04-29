@@ -1,0 +1,10 @@
+#!/bin/bash
+# Rebuilds pane-picker when source changes.
+# source: {{ include "dot_config/tmux/pane-picker/main.go" | sha256sum }}
+
+set -e
+GO=/opt/homebrew/bin/go
+[[ ! -f "$GO" ]] && echo "go not found, skipping" && exit 0
+echo "Building pane-picker..."
+cd "$HOME/.config/tmux/pane-picker" && "$GO" build -o "$HOME/bin/pane-picker" .
+echo "Built: ~/bin/pane-picker"
