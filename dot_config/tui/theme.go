@@ -63,7 +63,7 @@ var (
 	SDone     = lipgloss.NewStyle().Foreground(Comment)
 	SInfo     = lipgloss.NewStyle().Foreground(Blue)
 	SSubtle   = lipgloss.NewStyle().Foreground(Violet)
-	STitle    = lipgloss.NewStyle().Foreground(Yellow).Bold(true).Padding(0, 1)
+	STitle    = lipgloss.NewStyle().Foreground(Yellow).Bold(true)
 	SFooter   = lipgloss.NewStyle().Foreground(Inactive)
 	SBorder   = lipgloss.NewStyle().Border(lipgloss.RoundedBorder()).BorderForeground(Border)
 	SPreview  = lipgloss.NewStyle().Foreground(FGDim).PaddingLeft(1)
