@@ -441,7 +441,7 @@ func main() {
 		}
 	}
 
-	p := tea.NewProgram(newModel(notifications, width, height), tea.WithAltScreen())
+	p := tea.NewProgram(newModel(notifications, width, height))
 	result, err := p.Run()
 	if err != nil {
 		os.WriteFile("/tmp/agent-picker-err.txt", []byte(err.Error()+"\n"), 0644)

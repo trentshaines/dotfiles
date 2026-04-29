@@ -332,7 +332,7 @@ func main() {
 		}
 	}
 
-	p := tea.NewProgram(newModel(panes, width, height), tea.WithAltScreen())
+	p := tea.NewProgram(newModel(panes, width, height))
 	result, err := p.Run()
 	if err != nil {
 		os.Exit(1)
