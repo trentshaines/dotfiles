@@ -137,7 +137,7 @@ func (d itemDelegate) Render(w io.Writer, m list.Model, index int, item list.Ite
 
 	marker := "  "
 	if sel {
-		marker = lipgloss.NewStyle().Foreground(ui.Highlight).Bold(true).Render("❯ ")
+		marker = lipgloss.NewStyle().Foreground(ui.Border).Bold(true).Render("❯ ")
 	} else if p.active {
 		marker = ui.SActive.Render("▶ ")
 	}
@@ -191,7 +191,7 @@ type model struct {
 	quitting bool
 }
 
-var sInput = lipgloss.NewStyle().Foreground(ui.Highlight).Bold(true)
+var sInput = lipgloss.NewStyle().Foreground(ui.Border).Bold(true)
 
 func newModel(panes []Pane, width, height int) model {
 	c := makeCols(width)

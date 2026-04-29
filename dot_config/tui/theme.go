@@ -34,7 +34,7 @@ var (
 
 	// UI colors
 	Comment   = lipgloss.Color("#565f89") // muted / done
-	Border    = lipgloss.Color("#3b3d57") // borders
+	Border    = lipgloss.Color("#ff10f0") // borders — tmux prefix magenta
 	Inactive  = lipgloss.Color("#414868") // inactive elements
 	Highlight = lipgloss.Color("#fff2cc") // matches tmux status bar highlight
 )
