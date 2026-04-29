@@ -226,10 +226,12 @@ func newModel(notifications []Notification, width, height int) model {
 	l := list.New(items, itemDelegate{c: c, marked: marked}, width, listH)
 	l.Title = "Claude Notifications"
 	l.SetShowStatusBar(true)
+	l.SetStatusBarItemName("notification", "pending notifications")
 	l.SetFilteringEnabled(true)
 	l.Styles.Title = ui.STitle
 	l.Styles.FilterPrompt = lipgloss.NewStyle().Foreground(ui.Yellow)
 	l.Styles.FilterCursor = lipgloss.NewStyle().Foreground(ui.Yellow)
+	l.Styles.NoItems = ui.SDim.Padding(1, 2)
 	l.AdditionalShortHelpKeys = func() []key.Binding {
 		return []key.Binding{
 			key.NewBinding(key.WithKeys("tab"), key.WithHelp("tab", "mark")),
@@ -321,10 +323,6 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				delete(m.marked, tgt)
 			}
 			m = m.reload()
-			if len(m.list.Items()) == 0 {
-				m.quitting = true
-				return m, tea.Quit
-			}
 			if item, ok := m.list.SelectedItem().(Notification); ok {
 				return m, fetchPreview(item.target)
 			}
@@ -370,10 +368,6 @@ func (m model) View() string {
 
 func main() {
 	notifications := loadNotifications()
-	if len(notifications) == 0 {
-		fmt.Fprintln(os.Stderr, "no pending notifications")
-		os.Exit(0)
-	}
 
 	width, height := 120, 40
 	if w := os.Getenv("TMUX_CLIENT_WIDTH"); w != "" {
