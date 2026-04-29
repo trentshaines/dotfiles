@@ -68,7 +68,7 @@ var (
 	STitle    = lipgloss.NewStyle().Foreground(Yellow).Bold(true)
 	SFooter   = lipgloss.NewStyle().Foreground(Inactive)
 	SBorder   = lipgloss.NewStyle().Border(lipgloss.DoubleBorder()).BorderForeground(lipgloss.Color("#ffffff"))
-	SPreview  = lipgloss.NewStyle().Foreground(FGDim).PaddingLeft(1)
+	SPreview  = lipgloss.NewStyle().Foreground(FGDim)
 )
 
 // ── Component helpers ─────────────────────────────────────────────────────────
