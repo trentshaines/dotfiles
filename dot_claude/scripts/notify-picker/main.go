@@ -48,18 +48,19 @@ func (n Notification) FilterValue() string {
 func (n Notification) Title() string       { return n.paneTitle }
 func (n Notification) Description() string { return n.session }
 
-// staleVisitedTTL is how long a visited-but-not-engaged row stays in the queue
-// before the picker drops it from disk on the next launch.
-const staleVisitedTTL = 7 * 24 * 60 * 60 // seconds
+const (
+	staleVisitedTTL   = 7 * 24 * 60 * 60 // visited rows: 7 days
+	staleUnvisitedTTL = 24 * 60 * 60      // unvisited rows: 24h
+)
 
-// sweepStale rewrites the queue file with rows where visited > 0 AND the visit
-// is older than staleVisitedTTL filtered out. No-op if nothing to drop.
 func sweepStale() {
 	data, err := os.ReadFile(queueFile)
 	if err != nil {
 		return
 	}
-	cutoff := time.Now().Unix() - int64(staleVisitedTTL)
+	now := time.Now().Unix()
+	visitedCutoff   := now - int64(staleVisitedTTL)
+	unvisitedCutoff := now - int64(staleUnvisitedTTL)
 	lines := strings.Split(string(data), "\n")
 	kept := make([]string, 0, len(lines))
 	dropped := 0
@@ -69,7 +70,15 @@ func sweepStale() {
 		}
 		parts := strings.Split(line, "\t")
 		if len(parts) >= 8 {
-			if v, err := strconv.ParseInt(parts[7], 10, 64); err == nil && v > 0 && v < cutoff {
+			ts, _      := strconv.ParseInt(parts[0], 10, 64)
+			visited, _ := strconv.ParseInt(parts[7], 10, 64)
+			// Drop visited rows older than 7 days
+			if visited > 0 && visited < visitedCutoff {
+				dropped++
+				continue
+			}
+			// Drop unvisited rows older than 24h
+			if visited == 0 && ts > 0 && ts < unvisitedCutoff {
 				dropped++
 				continue
 			}
