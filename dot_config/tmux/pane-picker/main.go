@@ -200,20 +200,20 @@ func newModel(panes []Pane, width, height int) model {
 
 	// List (no built-in filtering — we handle it)
 	items := panesToItems(panes)
-	previewH := 12
-	listH := height - previewH - 4 // -4: title + input + footer + border
+	listW := width * 58 / 100
+	listH := height - 4 // title + input + footer + 1
 	if listH < 5 {
 		listH = 5
 	}
 
-	l := list.New(items, itemDelegate{c: c}, width, listH)
+	l := list.New(items, itemDelegate{c: c}, listW, listH)
 	l.SetShowTitle(false)
 	l.SetShowStatusBar(false)
 	l.SetFilteringEnabled(false)
 	l.SetShowHelp(false)
 	l.Styles.NoItems = ui.SDim.Padding(1, 2)
 
-	return model{input: ti, list: l, allPanes: panes, c: c, width: width, height: height}
+	return model{input: ti, list: l, allPanes: panes, c: makeCols(listW), width: width, height: height}
 }
 
 func panesToItems(panes []Pane) []list.Item {
@@ -235,13 +235,13 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
 		m.width, m.height = msg.Width, msg.Height
-		m.c = makeCols(msg.Width)
-		previewH := 12
-		listH := msg.Height - previewH - 4
+		listW := msg.Width * 58 / 100
+		listH := msg.Height - 4
 		if listH < 5 {
 			listH = 5
 		}
-		m.list.SetWidth(msg.Width)
+		m.c = makeCols(listW)
+		m.list.SetWidth(listW)
 		m.list.SetHeight(listH)
 		m.list.SetDelegate(itemDelegate{c: m.c})
 		return m, nil
@@ -301,14 +301,17 @@ func (m model) View() string {
 		return ""
 	}
 
+	listW := m.width * 58 / 100
+	previewW := m.width - listW
+	listH := m.height - 4
+
 	title := ui.SolidTitle(m.width).Render("All Panes")
-
 	prompt := ui.SearchPrompt(m.input)
-
-	preview := ui.PreviewBox(m.preview, m.width, 10)
+	preview := ui.PreviewPanel(m.preview, previewW, listH+1, 0)
+	body := lipgloss.JoinHorizontal(lipgloss.Top, m.list.View(), preview)
 	footer := ui.Footer("enter:switch", "esc:clear/quit", "↑↓:navigate")
 
-	return title + "\n" + prompt + "\n" + m.list.View() + "\n" + preview + "\n" + footer
+	return title + "\n" + prompt + "\n" + body + "\n" + footer
 }
 
 // ── Main ──────────────────────────────────────────────────────────────────────

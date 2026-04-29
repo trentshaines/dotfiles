@@ -38,6 +38,7 @@ type Notification struct {
 	paneIndex  string
 	paneTitle  string
 	done       bool
+	visited    bool
 	timeAgo    string
 }
 
@@ -47,7 +48,51 @@ func (n Notification) FilterValue() string {
 func (n Notification) Title() string       { return n.paneTitle }
 func (n Notification) Description() string { return n.session }
 
+// staleVisitedTTL is how long a visited-but-not-engaged row stays in the queue
+// before the picker drops it from disk on the next launch.
+const staleVisitedTTL = 7 * 24 * 60 * 60 // seconds
+
+// sweepStale rewrites the queue file with rows where visited > 0 AND the visit
+// is older than staleVisitedTTL filtered out. No-op if nothing to drop.
+func sweepStale() {
+	data, err := os.ReadFile(queueFile)
+	if err != nil {
+		return
+	}
+	cutoff := time.Now().Unix() - int64(staleVisitedTTL)
+	lines := strings.Split(string(data), "\n")
+	kept := make([]string, 0, len(lines))
+	dropped := 0
+	for _, line := range lines {
+		if line == "" {
+			continue
+		}
+		parts := strings.Split(line, "\t")
+		if len(parts) >= 8 {
+			if v, err := strconv.ParseInt(parts[7], 10, 64); err == nil && v > 0 && v < cutoff {
+				dropped++
+				continue
+			}
+		}
+		kept = append(kept, line)
+	}
+	if dropped == 0 {
+		return
+	}
+	out := strings.Join(kept, "\n")
+	if len(kept) > 0 {
+		out += "\n"
+	}
+	tmp := queueFile + ".tmp"
+	if err := os.WriteFile(tmp, []byte(out), 0o644); err != nil {
+		return
+	}
+	_ = os.Rename(tmp, queueFile)
+}
+
 func loadNotifications() []Notification {
+	sweepStale()
+
 	f, err := os.Open(queueFile)
 	if err != nil {
 		return nil
@@ -63,7 +108,7 @@ func loadNotifications() []Notification {
 		}
 		ts, target, client, project, session, window, paneIdx, visited :=
 			parts[0], parts[1], parts[2], parts[3], parts[4], parts[5], parts[6], parts[7]
-		if visited != "0" || target == "" {
+		if target == "" {
 			continue
 		}
 		if _, err := strconv.ParseInt(ts, 10, 64); err != nil {
@@ -89,10 +134,17 @@ func loadNotifications() []Notification {
 			ts: ts, target: target, client: client,
 			project: project, session: session, windowName: window,
 			paneIndex: paneIdx, paneTitle: paneTitle, done: done,
+			visited: visited != "0",
 			timeAgo: ago(ts),
 		})
 	}
-	sort.Slice(out, func(i, j int) bool { return out[i].ts > out[j].ts })
+	// Unvisited (active) rows first, then by timestamp desc within each group.
+	sort.SliceStable(out, func(i, j int) bool {
+		if out[i].visited != out[j].visited {
+			return !out[i].visited
+		}
+		return out[i].ts > out[j].ts
+	})
 	return out
 }
 
@@ -151,6 +203,14 @@ func (d itemDelegate) Render(w io.Writer, m list.Model, index int, item list.Ite
 	if n.done {
 		status = ui.SDim.Render("✓ ")
 	}
+	if n.visited {
+		// Acknowledged but not yet engaged — keep visible but de-emphasize.
+		if n.done {
+			status = ui.SDim.Render("✓ ")
+		} else {
+			status = ui.SDim.Render("⠿ ")
+		}
+	}
 
 	locStr := n.session + " → " + n.windowName
 	taskStr := "[" + n.paneIndex + "] " + n.paneTitle
@@ -169,16 +229,24 @@ func (d itemDelegate) Render(w io.Writer, m list.Model, index int, item list.Ite
 		}
 	} else {
 		// Per-column colors
+		locSty := ui.SNormal
 		taskSty := ui.SBright
-		if n.done {
+		timeSty := ui.SInfo
+		projSty := ui.SSubtle
+		if n.visited {
+			locSty = ui.SDim
+			taskSty = ui.SDim
+			timeSty = ui.SDim
+			projSty = ui.SDim
+		} else if n.done {
 			taskSty = ui.SDone
 		}
 		fmt.Fprint(w,
 			marker+status+
-				ui.SNormal.Render(ui.Pad(locStr, d.c.loc))+"  "+
+				locSty.Render(ui.Pad(locStr, d.c.loc))+"  "+
 				taskSty.Render(ui.Pad(taskStr, d.c.task))+"  "+
-				ui.SInfo.Render(ui.Pad(n.timeAgo, d.c.timeW))+"  "+
-				ui.SSubtle.Render(ui.Trunc(n.project, d.c.proj)),
+				timeSty.Render(ui.Pad(n.timeAgo, d.c.timeW))+"  "+
+				projSty.Render(ui.Trunc(n.project, d.c.proj)),
 		)
 	}
 }
@@ -217,13 +285,13 @@ func newModel(notifications []Notification, width, height int) model {
 		items[i] = n
 	}
 
-	previewH := 12
-	listH := height - previewH - 3
+	listW := width * 58 / 100
+	listH := height - 3 // title + footer + 1
 	if listH < 5 {
 		listH = 5
 	}
 
-	l := ui.NewSolidTitleList("Agent Notifications", items, itemDelegate{c: c, marked: marked}, width, listH)
+	l := ui.NewSolidTitleList("Agent Notifications", items, itemDelegate{c: c, marked: marked}, listW, listH)
 	l.SetShowStatusBar(true)
 	l.SetStatusBarItemName("notification", "pending notifications")
 	l.SetFilteringEnabled(true)
@@ -237,7 +305,7 @@ func newModel(notifications []Notification, width, height int) model {
 		}
 	}
 
-	return model{list: l, marked: marked, c: c, width: width, height: height}
+	return model{list: l, marked: marked, c: makeCols(listW), width: width, height: height}
 }
 
 func (m model) Init() tea.Cmd {
@@ -263,16 +331,16 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case tea.WindowSizeMsg:
 		m.width, m.height = msg.Width, msg.Height
-		m.c = makeCols(msg.Width)
-		previewH := 12
-		listH := msg.Height - previewH - 3
+		listW := msg.Width * 58 / 100
+		listH := msg.Height - 3
 		if listH < 5 {
 			listH = 5
 		}
-		m.list.SetWidth(msg.Width)
+		m.c = makeCols(listW)
+		m.list.SetWidth(listW)
 		m.list.SetHeight(listH)
 		m.list.SetDelegate(itemDelegate{c: m.c, marked: m.marked})
-		m.list.Styles.Title = ui.SolidTitle(msg.Width)
+		m.list.Styles.Title = ui.SolidTitle(listW)
 		return m, nil
 
 	case previewMsg:
@@ -345,10 +413,14 @@ func (m model) View() string {
 		return ""
 	}
 
-	preview := ui.PreviewBox(m.preview, m.width, 10)
+	listW := m.width * 58 / 100
+	previewW := m.width - listW
+	listH := m.height - 3
+	preview := ui.PreviewPanel(m.preview, previewW, listH+1, 0)
+	body := lipgloss.JoinHorizontal(lipgloss.Top, m.list.View(), preview)
 	footer := ui.Footer("enter:switch", "tab:mark", "ctrl+d:dismiss", "/:filter", "q:quit")
 
-	return m.list.View() + "\n" + preview + "\n" + footer
+	return body + "\n" + footer
 }
 
 // ── Main ──────────────────────────────────────────────────────────────────────
