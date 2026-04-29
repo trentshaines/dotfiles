@@ -224,6 +224,7 @@ func newModel(panes []Pane, width, height int) model {
 }
 
 func (m model) Init() tea.Cmd {
+	m.list.SetFilterState(list.Filtering)
 	if p, ok := m.list.SelectedItem().(Pane); ok {
 		return fetchPreview(p.id)
 	}
@@ -254,7 +255,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			break
 		}
 		switch msg.String() {
-		case "ctrl+c", "esc", "q":
+		case "ctrl+c", "q":
 			m.quitting = true
 			return m, tea.Quit
 		case "enter":
@@ -295,7 +296,7 @@ func (m model) View() string {
 	preview := ui.SBorder.Width(m.width - 4).Render(
 		ui.SPreview.Render(strings.Join(kept, "\n")),
 	)
-	footer := ui.SFooter.Render("  enter:switch  /:filter  q:quit")
+	footer := ui.SFooter.Render("  enter:switch  esc:clear filter  q:quit")
 	return m.list.View() + "\n" + preview + "\n" + footer
 }
 
