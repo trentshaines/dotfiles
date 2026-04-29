@@ -224,7 +224,7 @@ func newModel(notifications []Notification, width, height int) model {
 	}
 
 	l := list.New(items, itemDelegate{c: c, marked: marked}, width, listH)
-	l.Title = "Claude Notifications"
+	l.Title = "Agent Notifications"
 	l.SetShowStatusBar(true)
 	l.SetStatusBarItemName("notification", "pending notifications")
 	l.SetFilteringEnabled(true)

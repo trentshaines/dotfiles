@@ -1,0 +1,19 @@
+#!/bin/bash
+# Rebuilds agent-notify-picker when source changes.
+# chezmoi re-runs this script whenever its content changes (source hash below triggers it).
+# source: {{ include "dot_claude/scripts/notify-picker/main.go" | sha256sum }}
+
+set -e
+
+GO=/opt/homebrew/bin/go
+SRC="$HOME/.claude/scripts/notify-picker"
+OUT="$HOME/bin/agent-notify-picker"
+
+if [[ ! -f "$GO" ]]; then
+    echo "go not found at $GO, skipping build"
+    exit 0
+fi
+
+echo "Building agent-notify-picker..."
+cd "$SRC" && "$GO" build -o "$OUT" .
+echo "Built: $OUT"

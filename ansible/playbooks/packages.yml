@@ -44,6 +44,7 @@
           - bat
           - eza
           - gum
+          - go
 
           # Python
           - python@3.13
