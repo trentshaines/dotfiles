@@ -196,7 +196,9 @@ func (d itemDelegate) Render(w io.Writer, m list.Model, index int, item list.Ite
 	mrk := d.marked[n.target]
 
 	marker := "  "
-	if mrk {
+	if sel {
+		marker = ui.Caret()
+	} else if mrk {
 		marker = ui.SMarked.Render("◉ ")
 	}
 	status := ui.SActive.Render("⠿ ")

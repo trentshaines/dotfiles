@@ -104,7 +104,7 @@ type cols struct{ loc, cmd, detail int }
 func makeCols(width int) cols {
 	w := width - 4
 	loc, cmd := 28, 14
-	detail := w - 2 - 2 - loc - 2 - 2 - cmd - 2
+	detail := w - 2 - 2 - 2 - loc - 2 - 2 - cmd - 2 // extra 2 for split caret+active cols
 	if detail < 10 {
 		detail = 10
 	}
@@ -135,11 +135,13 @@ func (d itemDelegate) Render(w io.Writer, m list.Model, index int, item list.Ite
 	}
 	sel := index == m.Index()
 
-	marker := "  "
+	caret := "  "
 	if sel {
-		marker = ui.Caret()
-	} else if p.active {
-		marker = ui.ActiveMark()
+		caret = ui.Caret()
+	}
+	active := "  "
+	if p.active {
+		active = ui.ActiveMark()
 	}
 
 	loc := p.session + " → " + p.winName + " (" + p.pane + ")"
@@ -149,7 +151,7 @@ func (d itemDelegate) Render(w io.Writer, m list.Model, index int, item list.Ite
 	}
 
 	if sel {
-		line := marker + ui.Pad(loc, d.c.loc) + "  " + ui.Pad(p.command, d.c.cmd) + "  " + ui.Trunc(detail, d.c.detail)
+		line := caret + active + ui.Pad(loc, d.c.loc) + "  " + ui.Pad(p.command, d.c.cmd) + "  " + ui.Trunc(detail, d.c.detail)
 		fmt.Fprint(w, ui.SSelected.Render(line))
 	} else {
 		cmdSty := ui.SNormal
@@ -157,7 +159,7 @@ func (d itemDelegate) Render(w io.Writer, m list.Model, index int, item list.Ite
 			cmdSty = lipgloss.NewStyle().Foreground(c)
 		}
 		fmt.Fprint(w,
-			marker+
+			caret+active+
 				ui.SNormal.Render(ui.Pad(loc, d.c.loc))+"  "+
 				cmdSty.Render(ui.Pad(p.command, d.c.cmd))+"  "+
 				ui.SDim.Render(ui.Trunc(detail, d.c.detail)),
