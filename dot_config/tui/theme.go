@@ -33,9 +33,10 @@ var (
 	Violet = lipgloss.Color("#bb9af7")
 
 	// UI colors
-	Comment  = lipgloss.Color("#565f89") // muted / done
-	Border   = lipgloss.Color("#3b3d57") // borders
-	Inactive = lipgloss.Color("#414868") // inactive elements
+	Comment   = lipgloss.Color("#565f89") // muted / done
+	Border    = lipgloss.Color("#3b3d57") // borders
+	Inactive  = lipgloss.Color("#414868") // inactive elements
+	Highlight = lipgloss.Color("#fff2cc") // tmux/UI highlight yellow (cream)
 )
 
 // ── Semantic aliases ──────────────────────────────────────────────────────────
@@ -68,6 +69,23 @@ var (
 	SBorder   = lipgloss.NewStyle().Border(lipgloss.RoundedBorder()).BorderForeground(Border)
 	SPreview  = lipgloss.NewStyle().Foreground(FGDim).PaddingLeft(1)
 )
+
+// ── Component helpers ─────────────────────────────────────────────────────────
+
+// SolidTitle returns a full-width title bar style matching the tmux highlight colour.
+// Pass the popup/terminal width so it stretches edge-to-edge.
+// Also zero out bubbles/list's default TitleBar padding:
+//
+//	l.Styles.TitleBar = lipgloss.NewStyle()
+//	l.Styles.Title    = tui.SolidTitle(width)
+func SolidTitle(width int) lipgloss.Style {
+	return lipgloss.NewStyle().
+		Background(Highlight).
+		Foreground(BG).
+		Bold(true).
+		Padding(0, 1).
+		Width(width)
+}
 
 // ── Layout helpers ────────────────────────────────────────────────────────────
 

@@ -173,15 +173,6 @@ func (d itemDelegate) Render(w io.Writer, m list.Model, index int, item list.Ite
 	}
 }
 
-func solidTitle(width int) lipgloss.Style {
-	return lipgloss.NewStyle().
-		Background(ui.Yellow).
-		Foreground(ui.BG).
-		Bold(true).
-		Padding(0, 1).
-		Width(width)
-}
-
 // ── Model ─────────────────────────────────────────────────────────────────────
 
 type previewMsg string
@@ -224,7 +215,8 @@ func newModel(panes []Pane, width, height int) model {
 	l.SetShowStatusBar(true)
 	l.SetFilteringEnabled(true)
 	l.SetStatusBarItemName("pane", "panes")
-	l.Styles.Title = solidTitle(width)
+	l.Styles.TitleBar = lipgloss.NewStyle()
+	l.Styles.Title = ui.SolidTitle(width)
 	l.Styles.FilterPrompt = lipgloss.NewStyle().Foreground(ui.Yellow)
 	l.Styles.FilterCursor = lipgloss.NewStyle().Foreground(ui.Yellow)
 	l.Styles.NoItems = ui.SDim.Padding(1, 2)
@@ -263,7 +255,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.list.SetWidth(msg.Width)
 		m.list.SetHeight(listH)
 		m.list.SetDelegate(itemDelegate{c: m.c})
-		m.list.Styles.Title = solidTitle(msg.Width)
+		m.list.Styles.Title = ui.SolidTitle(msg.Width)
 		return m, nil
 
 	case previewMsg:
