@@ -207,6 +207,7 @@ func newModel(panes []Pane, width, height int) model {
 	}
 
 	l := list.New(items, itemDelegate{c: c}, listW, listH)
+	l.Select(0)
 	l.SetShowTitle(false)
 	l.SetShowStatusBar(false)
 	l.SetFilteringEnabled(false)
@@ -243,6 +244,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.c = makeCols(listW)
 		m.list.SetWidth(listW)
 		m.list.SetHeight(listH)
+		m.list.Select(0)
 		m.list.SetDelegate(itemDelegate{c: m.c})
 		return m, nil
 

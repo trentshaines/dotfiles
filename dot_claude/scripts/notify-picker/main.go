@@ -292,6 +292,7 @@ func newModel(notifications []Notification, width, height int) model {
 	}
 
 	l := ui.NewSolidTitleList("Agent Notifications", items, itemDelegate{c: c, marked: marked}, listW, listH)
+	l.Select(0)
 	l.SetShowStatusBar(true)
 	l.SetStatusBarItemName("notification", "pending notifications")
 	l.SetFilteringEnabled(true)
@@ -339,6 +340,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.c = makeCols(listW)
 		m.list.SetWidth(listW)
 		m.list.SetHeight(listH)
+		m.list.Select(0)
 		m.list.SetDelegate(itemDelegate{c: m.c, marked: m.marked})
 		m.list.Styles.Title = ui.SolidTitle(listW)
 		return m, nil
