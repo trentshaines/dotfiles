@@ -66,7 +66,7 @@ var (
 	SSubtle   = lipgloss.NewStyle().Foreground(Violet)
 	STitle    = lipgloss.NewStyle().Foreground(Yellow).Bold(true)
 	SFooter   = lipgloss.NewStyle().Foreground(Inactive)
-	SBorder   = lipgloss.NewStyle().Border(lipgloss.RoundedBorder()).BorderForeground(Border)
+	SBorder   = lipgloss.NewStyle().Border(lipgloss.DoubleBorder()).BorderForeground(Border)
 	SPreview  = lipgloss.NewStyle().Foreground(FGDim).PaddingLeft(1)
 )
 
