@@ -70,13 +70,23 @@ func loadNotifications() []Notification {
 		}
 
 		raw := ""
+		paneExists := false
 		if b, err := exec.Command(tmuxBin, "display-message", "-t", target, "-p", "#{pane_title}").Output(); err == nil {
 			raw = strings.TrimSpace(string(b))
+			paneExists = true
+		}
+		// Skip stale targets where the pane no longer exists
+		if !paneExists {
+			continue
 		}
 		done := strings.HasPrefix(raw, "✓")
 		paneTitle := raw
 		for _, pfx := range []string{"✓ ", "✳ "} {
 			paneTitle = strings.TrimPrefix(paneTitle, pfx)
+		}
+		// Fall back to window name if pane title is empty
+		if paneTitle == "" {
+			paneTitle = window
 		}
 
 		out = append(out, Notification{
