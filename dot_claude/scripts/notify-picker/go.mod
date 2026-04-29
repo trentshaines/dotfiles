@@ -6,7 +6,10 @@ require (
 	github.com/charmbracelet/bubbles v1.0.0
 	github.com/charmbracelet/bubbletea v1.3.10
 	github.com/charmbracelet/lipgloss v1.1.0
+	trenthaines.dev/tui v0.0.0
 )
+
+replace trenthaines.dev/tui => /Users/trenthaines/.config/tui
 
 require (
 	github.com/atotto/clipboard v0.1.4 // indirect
