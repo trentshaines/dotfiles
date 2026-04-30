@@ -304,14 +304,23 @@ func (m model) View() string {
 		return ""
 	}
 
-	listW := m.width * 58 / 100
-	previewW := m.width - listW
 	listH := m.height - 4
 
 	title := ui.SolidTitle(m.width).Render("All Panes")
 	prompt := ui.SearchPrompt(m.input)
+	listView := m.list.View()
+	actualListW := 0
+	for _, row := range strings.Split(listView, "\n") {
+		if w := lipgloss.Width(row); w > actualListW {
+			actualListW = w
+		}
+	}
+	previewW := m.width - actualListW
+	if previewW < 10 {
+		previewW = 10
+	}
 	preview := ui.PreviewPanel(m.preview, previewW, listH+1, 0)
-	body := lipgloss.JoinHorizontal(lipgloss.Top, m.list.View(), preview)
+	body := lipgloss.JoinHorizontal(lipgloss.Top, listView, preview)
 	footer := ui.Footer("enter:switch", "esc:clear/quit", "↑↓:navigate")
 
 	return ui.FillHeight(title+"\n"+prompt+"\n"+body+"\n"+footer, m.height)

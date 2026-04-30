@@ -373,6 +373,9 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			if item, ok := m.list.SelectedItem().(Notification); ok {
 				n := item
 				m.switchTo = &n
+				// Explicit visit via the picker counts as engagement —
+				// pop the row off the queue so it doesn't reappear dimmed.
+				exec.Command(deleteScr, n.target).Run()
 				m.quitting = true
 				return m, tea.Quit
 			}
@@ -427,11 +430,21 @@ func (m model) View() string {
 	}
 
 	title := ui.SolidTitle(m.width).Render("Agent Notifications")
-	listW := m.width * 58 / 100
-	previewW := m.width - listW
 	listH := m.height - 3
+	listView := m.list.View()
+	// Measure actual rendered list width so preview fills exactly to the right edge
+	actualListW := 0
+	for _, row := range strings.Split(listView, "\n") {
+		if w := lipgloss.Width(row); w > actualListW {
+			actualListW = w
+		}
+	}
+	previewW := m.width - actualListW
+	if previewW < 10 {
+		previewW = 10
+	}
 	preview := ui.PreviewPanel(m.preview, previewW, listH, 0)
-	body := lipgloss.JoinHorizontal(lipgloss.Top, m.list.View(), preview)
+	body := lipgloss.JoinHorizontal(lipgloss.Top, listView, preview)
 	footer := ui.Footer("enter:switch", "tab:mark", "ctrl+d:dismiss", "/:filter", "q:quit")
 
 	return ui.FillHeight(title+"\n"+body+"\n"+footer, m.height)
