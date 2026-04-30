@@ -270,7 +270,7 @@ type previewMsg string
 
 func fetchPreview(target string) tea.Cmd {
 	return func() tea.Msg {
-		b, err := exec.Command(tmuxBin, "capture-pane", "-p", "-e", "-t", target, "-S", "-25").Output()
+		b, err := exec.Command(tmuxBin, "capture-pane", "-p", "-t", target, "-S", "-25").Output()
 		if err != nil {
 			return previewMsg("")
 		}

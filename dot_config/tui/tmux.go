@@ -15,7 +15,7 @@ type PanePreviewMsg string
 
 func panePreviewCmd(paneID string, lines int) tea.Cmd {
 	return func() tea.Msg {
-		b, err := exec.Command(tmuxBin, "capture-pane", "-p", "-e", "-t", paneID,
+		b, err := exec.Command(tmuxBin, "capture-pane", "-p", "-t", paneID,
 			"-S", fmt.Sprintf("-%d", lines)).Output()
 		if err != nil {
 			return PanePreviewMsg("")
