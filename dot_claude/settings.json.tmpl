@@ -41,6 +41,10 @@
           {
             "type": "command",
             "command": "~/.claude/hooks/pane-title.sh"
+          },
+          {
+            "type": "command",
+            "command": "~/.claude/hooks/notify-running-end.sh"
           }
         ]
       }
@@ -59,6 +63,10 @@
           {
             "type": "command",
             "command": "~/.claude/hooks/notify-engaged.sh"
+          },
+          {
+            "type": "command",
+            "command": "~/.claude/hooks/notify-running-start.sh"
           }
         ]
       }
@@ -69,6 +77,16 @@
           {
             "type": "command",
             "command": "~/.claude/hooks/notify-complete.sh"
+          }
+        ]
+      }
+    ],
+    "SessionEnd": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "~/.claude/hooks/notify-running-end.sh"
           }
         ]
       }

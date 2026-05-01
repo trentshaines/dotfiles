@@ -39,8 +39,18 @@ type Notification struct {
 	paneTitle  string
 	done       bool
 	visited    bool
+	running    bool
 	timeAgo    string
 }
+
+const (
+	tabUnvisited = 0
+	tabRunning   = 1
+	tabVisited   = 2
+	tabCount     = 3
+)
+
+var tabLabels = [tabCount]string{"Unvisited", "Running", "Visited"}
 
 func (n Notification) FilterValue() string {
 	return n.session + " " + n.windowName + " " + n.paneTitle + " " + n.project
@@ -159,6 +169,120 @@ func loadNotifications() []Notification {
 	return out
 }
 
+const runningFile = "/tmp/claude-running.queue"
+
+// claudeRunningOn returns true if any process named "claude" is bound to the
+// given terminal. tty should be the basename (e.g. "ttys003"), no "/dev/".
+// Uses `ps -t <tty> -o comm=` which works reliably on macOS (pgrep -t is buggy here).
+func claudeRunningOn(tty string) bool {
+	if tty == "" {
+		return false
+	}
+	out, err := exec.Command("ps", "-t", tty, "-o", "comm=").Output()
+	if err != nil {
+		return false
+	}
+	for _, line := range strings.Split(string(out), "\n") {
+		if strings.TrimSpace(line) == "claude" {
+			return true
+		}
+	}
+	return false
+}
+
+// loadRunning reads the running queue maintained by notify-running-{start,end}.sh.
+// Rows whose tmux pane no longer exists are dropped (and the file is rewritten).
+// Format: TIMESTAMP\tPANE_ID\tTARGET\tCLIENT\tPROJECT\tSESSION\tWINDOW_NAME\tPANE_INDEX
+func loadRunning() []Notification {
+	data, err := os.ReadFile(runningFile)
+	if err != nil {
+		return nil
+	}
+	lines := strings.Split(strings.TrimRight(string(data), "\n"), "\n")
+	kept := make([]string, 0, len(lines))
+	var result []Notification
+	for _, line := range lines {
+		if line == "" {
+			continue
+		}
+		parts := strings.Split(line, "\t")
+		if len(parts) < 8 {
+			continue
+		}
+		ts, paneID, target, client, project, session, window, paneIdx :=
+			parts[0], parts[1], parts[2], parts[3], parts[4], parts[5], parts[6], parts[7]
+
+		// Validate pane still exists; also fetch its tty so we can verify
+		// claude is actually running there. Hooks miss ungraceful exits
+		// (kill, terminal close, Ctrl+C); the process check is the backstop.
+		paneInfo, err := exec.Command(tmuxBin, "display-message", "-t", paneID, "-p", "#{pane_title}\t#{pane_tty}").Output()
+		if err != nil {
+			continue // pane gone — drop stale row
+		}
+		infoParts := strings.SplitN(strings.TrimSpace(string(paneInfo)), "\t", 2)
+		if len(infoParts) != 2 {
+			continue
+		}
+		raw := infoParts[0]
+		paneTty := strings.TrimPrefix(infoParts[1], "/dev/")
+		if !claudeRunningOn(paneTty) {
+			continue // no live claude in this pane — drop stale row
+		}
+		paneTitle := raw
+		for _, pfx := range []string{"✓ ", "✳ "} {
+			paneTitle = strings.TrimPrefix(paneTitle, pfx)
+		}
+		if paneTitle == "" {
+			paneTitle = window
+		}
+
+		kept = append(kept, line)
+		result = append(result, Notification{
+			ts:         ts,
+			target:     target,
+			client:     client,
+			project:    project,
+			session:    session,
+			windowName: window,
+			paneIndex:  paneIdx,
+			paneTitle:  paneTitle,
+			running:    true,
+			timeAgo:    ago(ts),
+		})
+	}
+	// Rewrite file if we dropped any stale rows.
+	if len(kept) != len(lines) {
+		out := strings.Join(kept, "\n")
+		if len(kept) > 0 {
+			out += "\n"
+		}
+		tmp := runningFile + ".tmp"
+		if err := os.WriteFile(tmp, []byte(out), 0o644); err == nil {
+			_ = os.Rename(tmp, runningFile)
+		}
+	}
+	sort.SliceStable(result, func(i, j int) bool {
+		// Most recently started first.
+		return result[i].ts > result[j].ts
+	})
+	return result
+}
+
+// loadAll returns the three tab buckets: unvisited queue rows, running panes
+// (live), visited queue rows. loadNotifications already runs sweepStale.
+func loadAll() [tabCount][]Notification {
+	queue := loadNotifications()
+	var unvisited, visited []Notification
+	for _, n := range queue {
+		if n.visited {
+			visited = append(visited, n)
+		} else {
+			unvisited = append(unvisited, n)
+		}
+	}
+	return [tabCount][]Notification{unvisited, loadRunning(), visited}
+}
+
 func ago(ts string) string {
 	t, _ := strconv.ParseInt(ts, 10, 64)
 	mins := int(time.Now().Unix()-t) / 60
@@ -224,6 +348,10 @@ func (d itemDelegate) Render(w io.Writer, m list.Model, index int, item list.Ite
 			status = ui.SDim.Render("⠿ ")
 		}
 	}
+	if n.running {
+		// Live tmux row: agent currently working.
+		status = ui.SActive.Render("⠿ ")
+	}
 
 	locStr := n.session + " → " + n.windowName
 	taskStr := "[" + n.paneIndex + "] " + n.paneTitle
@@ -238,12 +366,14 @@ func (d itemDelegate) Render(w io.Writer, m list.Model, index int, item list.Ite
 		if mrk {
 			fmt.Fprint(w, ui.SSelMark.Render(line))
 		} else {
-			fmt.Fprint(w, ui.SSelected.Render(line))
+			// Selected = bright white bold. Cursor signal lives here, not in row tone.
+			fmt.Fprint(w, ui.SBright.Bold(true).Render(line))
 		}
 	} else {
-		// Per-column colors
+		// Per-column colors. Unvisited rows stay normal — the left status glyph
+		// (`⠿`/`✓`) carries the active vs done signal, not row brightness.
 		locSty := ui.SNormal
-		taskSty := ui.SBright
+		taskSty := ui.SNormal
 		timeSty := ui.SInfo
 		projSty := ui.SSubtle
 		if n.visited {
@@ -280,6 +410,8 @@ func fetchPreview(target string) tea.Cmd {
 
 type model struct {
 	list     list.Model
+	tabs     [tabCount][]Notification
+	tabIdx   int
 	marked   map[string]bool
 	c        cols
 	width    int
@@ -289,22 +421,38 @@ type model struct {
 	quitting bool
 }
 
-func newModel(notifications []Notification, width, height int) model {
-	marked := make(map[string]bool)
-
-	items := make([]list.Item, len(notifications))
-	for i, n := range notifications {
+// itemsFor converts the slice of Notifications for tab i into list.Items.
+func itemsFor(ns []Notification) []list.Item {
+	items := make([]list.Item, len(ns))
+	for i, n := range ns {
 		items[i] = n
 	}
+	return items
+}
+
+// firstNonEmptyTab returns the lowest-index tab that has any rows. Falls back
+// to Unvisited if every tab is empty so the picker still has a stable cursor.
+func firstNonEmptyTab(tabs [tabCount][]Notification) int {
+	for i := 0; i < tabCount; i++ {
+		if len(tabs[i]) > 0 {
+			return i
+		}
+	}
+	return tabUnvisited
+}
+
+func newModel(tabs [tabCount][]Notification, width, height int) model {
+	marked := make(map[string]bool)
 
 	listW := width * 58 / 100
-	listH := height - 3 // title + footer + 1
+	listH := height - 4 // title(1) + tab strip(1) + footer(1) + buffer(1)
 	if listH < 5 {
 		listH = 5
 	}
 	c := makeCols(listW)
 
-	l := ui.NewList(items, itemDelegate{c: c, marked: marked}, listW, listH)
+	startTab := firstNonEmptyTab(tabs)
+	l := ui.NewList(itemsFor(tabs[startTab]), itemDelegate{c: c, marked: marked}, listW, listH)
 	l.SetShowTitle(false)
 	l.Styles.TitleBar = lipgloss.NewStyle()
 	l.SetShowStatusBar(false)
@@ -314,12 +462,53 @@ func newModel(notifications []Notification, width, height int) model {
 	l.Styles.NoItems = ui.SDim.Padding(1, 2)
 	l.AdditionalShortHelpKeys = func() []key.Binding {
 		return []key.Binding{
+			key.NewBinding(key.WithKeys("←/→"), key.WithHelp("←/→", "tab")),
 			key.NewBinding(key.WithKeys("tab"), key.WithHelp("tab", "mark")),
 			key.NewBinding(key.WithKeys("ctrl+d"), key.WithHelp("ctrl+d", "dismiss")),
 		}
 	}
 
-	return model{list: l, marked: marked, c: makeCols(listW), width: width, height: height}
+	return model{
+		list:   l,
+		tabs:   tabs,
+		tabIdx: startTab,
+		marked: marked,
+		c:      c,
+		width:  width,
+		height: height,
+	}
+}
+
+// switchTab swaps the list's items to those of tab idx. Resets cursor and
+// clears any active filter, since filter context doesn't carry across tabs.
+func (m *model) switchTab(idx int) {
+	if idx < 0 {
+		idx = tabCount - 1
+	}
+	if idx >= tabCount {
+		idx = 0
+	}
+	m.tabIdx = idx
+	if m.list.FilterState() != list.Unfiltered {
+		m.list.ResetFilter()
+	}
+	m.list.SetItems(itemsFor(m.tabs[idx]))
+	m.list.ResetSelected()
+}
+
+// renderTabStrip renders the row of tab labels with counts. Active tab is
+// bracketed and bold; inactive tabs are dim.
+func renderTabStrip(active int, tabs [tabCount][]Notification) string {
+	var parts []string
+	for i := 0; i < tabCount; i++ {
+		text := fmt.Sprintf("%s %d", tabLabels[i], len(tabs[i]))
+		if i == active {
+			parts = append(parts, ui.SBright.Bold(true).Render("[ "+text+" ]"))
+		} else {
+			parts = append(parts, ui.SDim.Render("  "+text+"  "))
+		}
+	}
+	return "  " + strings.Join(parts, " ")
 }
 
 func (m model) Init() tea.Cmd {
@@ -330,12 +519,12 @@ func (m model) Init() tea.Cmd {
 }
 
 func (m model) reload() model {
-	notifications := loadNotifications()
-	items := make([]list.Item, len(notifications))
-	for i, n := range notifications {
-		items[i] = n
+	m.tabs = loadAll()
+	if len(m.tabs[m.tabIdx]) == 0 && m.tabIdx != tabUnvisited {
+		// Avoid landing on an empty tab after a dismiss.
+		m.tabIdx = firstNonEmptyTab(m.tabs)
 	}
-	m.list.SetItems(items)
+	m.list.SetItems(itemsFor(m.tabs[m.tabIdx]))
 	m.list.SetDelegate(itemDelegate{c: m.c, marked: m.marked})
 	return m
 }
@@ -346,7 +535,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.WindowSizeMsg:
 		m.width, m.height = msg.Width, msg.Height
 		listW := msg.Width * 58 / 100
-		listH := msg.Height - 3
+		listH := msg.Height - 4 // title + tab strip + footer + buffer
 		if listH < 5 {
 			listH = 5
 		}
@@ -369,13 +558,30 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.quitting = true
 			return m, tea.Quit
 
+		case "left", "shift+tab", "ctrl+h":
+			m.switchTab(m.tabIdx - 1)
+			if item, ok := m.list.SelectedItem().(Notification); ok {
+				return m, fetchPreview(item.target)
+			}
+			return m, nil
+
+		case "right", "ctrl+l":
+			m.switchTab(m.tabIdx + 1)
+			if item, ok := m.list.SelectedItem().(Notification); ok {
+				return m, fetchPreview(item.target)
+			}
+			return m, nil
+
 		case "enter":
 			if item, ok := m.list.SelectedItem().(Notification); ok {
 				n := item
 				m.switchTo = &n
 				// Explicit visit via the picker counts as engagement —
 				// pop the row off the queue so it doesn't reappear dimmed.
-				exec.Command(deleteScr, n.target).Run()
+				// (No-op for Running rows since they aren't in the queue.)
+				if !n.running {
+					exec.Command(deleteScr, n.target).Run()
+				}
 				m.quitting = true
 				return m, tea.Quit
 			}
@@ -393,6 +599,10 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, nil
 
 		case "ctrl+d":
+			// Dismiss is queue-only — no-op on Running tab.
+			if m.tabIdx == tabRunning {
+				return m, nil
+			}
 			targets := []string{}
 			if len(m.marked) > 0 {
 				for tgt := range m.marked {
@@ -430,22 +640,26 @@ func (m model) View() string {
 	}
 
 	title := ui.SolidTitle(m.width).Render("Agent Notifications")
-	listH := m.height - 3
+	tabStrip := renderTabStrip(m.tabIdx, m.tabs)
+	bodyH := m.height - 3 // title(1) + footer(1) + buffer(1)
 	listView := m.list.View()
-	// Measure actual rendered list width so preview fills exactly to the right edge
-	actualListW := 0
-	for _, row := range strings.Split(listView, "\n") {
-		if w := lipgloss.Width(row); w > actualListW {
-			actualListW = w
+	// Stack tab strip above the list in the left column.
+	leftCol := tabStrip + "\n" + listView
+
+	// Measure actual rendered left-column width so preview fills exactly to the right edge.
+	actualLeftW := 0
+	for _, row := range strings.Split(leftCol, "\n") {
+		if w := lipgloss.Width(row); w > actualLeftW {
+			actualLeftW = w
 		}
 	}
-	previewW := m.width - actualListW
+	previewW := m.width - actualLeftW
 	if previewW < 10 {
 		previewW = 10
 	}
-	preview := ui.PreviewPanel(m.preview, previewW, listH, 0)
-	body := lipgloss.JoinHorizontal(lipgloss.Top, listView, preview)
-	footer := ui.Footer("enter:switch", "tab:mark", "ctrl+d:dismiss", "/:filter", "q:quit")
+	preview := ui.PreviewPanel(m.preview, previewW, bodyH, 0)
+	body := lipgloss.JoinHorizontal(lipgloss.Top, leftCol, preview)
+	footer := ui.Footer("←/→:tab", "enter:switch", "tab:mark", "ctrl+d:dismiss", "/:filter", "q:quit")
 
 	return ui.FillHeight(title+"\n"+body+"\n"+footer, m.height)
 }
@@ -453,7 +667,7 @@ func (m model) View() string {
 // ── Main ──────────────────────────────────────────────────────────────────────
 
 func main() {
-	notifications := loadNotifications()
+	tabs := loadAll()
 
 	width, height := 0, 0
 	if w := os.Getenv("TMUX_CLIENT_WIDTH"); w != "" {
@@ -467,7 +681,7 @@ func main() {
 		}
 	}
 
-	p := tea.NewProgram(newModel(notifications, width, height))
+	p := tea.NewProgram(newModel(tabs, width, height))
 	result, err := p.Run()
 	if err != nil {
 		os.WriteFile("/tmp/agent-picker-err.txt", []byte(err.Error()+"\n"), 0644)
