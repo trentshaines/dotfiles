@@ -9,7 +9,7 @@ require (
 	trenthaines.dev/tui v0.0.0
 )
 
-replace trenthaines.dev/tui => /Users/trenthaines/.config/tui
+replace trenthaines.dev/tui => {{ .chezmoi.homeDir }}/.config/tui
 
 require (
 	github.com/atotto/clipboard v0.1.4 // indirect
