@@ -16,3 +16,4 @@ Library/Application Support/espanso/match/local.yml
 .codex/orgs.txt
 .codex/automations/*/memory.md
 .codex/automations/.run-jitter-salt
+.config/anthropic/
