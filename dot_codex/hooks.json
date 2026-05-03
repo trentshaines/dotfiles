@@ -5,7 +5,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "~/.claude/hooks/pane-title.sh"
+            "command": "$HOME/.claude/hooks/pane-title.sh"
           }
         ]
       }
@@ -15,11 +15,11 @@
         "hooks": [
           {
             "type": "command",
-            "command": "~/.claude/hooks/pane-title.sh"
+            "command": "$HOME/.claude/hooks/pane-title.sh"
           },
           {
             "type": "command",
-            "command": "~/.claude/hooks/notify-complete.sh"
+            "command": "$HOME/.claude/hooks/notify-complete.sh"
           }
         ]
       }
