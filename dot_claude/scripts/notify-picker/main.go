@@ -60,7 +60,7 @@ func (n Notification) Description() string { return n.session }
 
 const (
 	staleVisitedTTL   = 7 * 24 * 60 * 60 // visited rows: 7 days
-	staleUnvisitedTTL = 24 * 60 * 60      // unvisited rows: 24h
+	staleUnvisitedTTL = 24 * 60 * 60     // unvisited rows: 24h
 )
 
 func sweepStale() {
@@ -69,7 +69,7 @@ func sweepStale() {
 		return
 	}
 	now := time.Now().Unix()
-	visitedCutoff   := now - int64(staleVisitedTTL)
+	visitedCutoff := now - int64(staleVisitedTTL)
 	unvisitedCutoff := now - int64(staleUnvisitedTTL)
 	lines := strings.Split(string(data), "\n")
 	kept := make([]string, 0, len(lines))
@@ -80,7 +80,7 @@ func sweepStale() {
 		}
 		parts := strings.Split(line, "\t")
 		if len(parts) >= 8 {
-			ts, _      := strconv.ParseInt(parts[0], 10, 64)
+			ts, _ := strconv.ParseInt(parts[0], 10, 64)
 			visited, _ := strconv.ParseInt(parts[7], 10, 64)
 			// Drop visited rows older than 7 days
 			if visited > 0 && visited < visitedCutoff {
@@ -171,37 +171,38 @@ func loadNotifications() []Notification {
 
 const runningFile = "/tmp/claude-running.queue"
 
-// claudeRunningOn returns true if any process named "claude" is bound to the
-// given terminal. tty should be the basename (e.g. "ttys003"), no "/dev/".
-// Uses `ps -t <tty> -o comm=` which works reliably on macOS (pgrep -t is buggy here).
-func claudeRunningOn(tty string) bool {
-	if tty == "" {
-		return false
-	}
-	out, err := exec.Command("ps", "-t", tty, "-o", "comm=").Output()
-	if err != nil {
-		return false
-	}
-	for _, line := range strings.Split(string(out), "\n") {
-		if strings.TrimSpace(line) == "claude" {
-			return true
-		}
-	}
-	return false
+type runningQueueEntry struct {
+	ts      string
+	client  string
+	project string
 }
 
-// loadRunning reads the running queue maintained by notify-running-{start,end}.sh.
-// Rows whose tmux pane no longer exists are dropped (and the file is rewritten).
-// Format: TIMESTAMP\tPANE_ID\tTARGET\tCLIENT\tPROJECT\tSESSION\tWINDOW_NAME\tPANE_INDEX
-func loadRunning() []Notification {
+type agentProcess struct {
+	name      string
+	startedAt int64
+}
+
+type tmuxPane struct {
+	id      string
+	tty     string
+	session string
+	winIdx  string
+	winName string
+	paneIdx string
+	title   string
+	path    string
+}
+
+// readRunningQueue preserves hook-provided start timestamps when present. The
+// live tmux scan below is authoritative for whether a pane exists and has an
+// agent process attached.
+func readRunningQueue() map[string]runningQueueEntry {
+	entries := make(map[string]runningQueueEntry)
 	data, err := os.ReadFile(runningFile)
 	if err != nil {
-		return nil
+		return entries
 	}
-	lines := strings.Split(strings.TrimRight(string(data), "\n"), "\n")
-	kept := make([]string, 0, len(lines))
-	var result []Notification
-	for _, line := range lines {
+	for _, line := range strings.Split(strings.TrimRight(string(data), "\n"), "\n") {
 		if line == "" {
 			continue
 		}
@@ -209,58 +210,268 @@ func loadRunning() []Notification {
 		if len(parts) < 8 {
 			continue
 		}
-		ts, paneID, target, client, project, session, window, paneIdx :=
-			parts[0], parts[1], parts[2], parts[3], parts[4], parts[5], parts[6], parts[7]
-
-		// Validate pane still exists; also fetch its tty so we can verify
-		// claude is actually running there. Hooks miss ungraceful exits
-		// (kill, terminal close, Ctrl+C); the process check is the backstop.
-		paneInfo, err := exec.Command(tmuxBin, "display-message", "-t", paneID, "-p", "#{pane_title}\t#{pane_tty}").Output()
-		if err != nil {
-			continue // pane gone — drop stale row
+		entries[parts[1]] = runningQueueEntry{
+			ts:      parts[0],
+			client:  parts[3],
+			project: parts[4],
 		}
-		infoParts := strings.SplitN(strings.TrimSpace(string(paneInfo)), "\t", 2)
-		if len(infoParts) != 2 {
+	}
+	return entries
+}
+
+func loadTmuxPanes() []tmuxPane {
+	format := strings.Join([]string{
+		"#{pane_id}", "#{pane_tty}", "#{session_name}", "#{window_index}",
+		"#{window_name}", "#{pane_index}", "#{pane_title}", "#{pane_current_path}",
+	}, "\t")
+	out, err := exec.Command(tmuxBin, "list-panes", "-a", "-F", format).Output()
+	if err != nil {
+		return nil
+	}
+
+	var panes []tmuxPane
+	for _, line := range strings.Split(strings.TrimRight(string(out), "\n"), "\n") {
+		if line == "" {
 			continue
 		}
-		raw := infoParts[0]
-		paneTty := strings.TrimPrefix(infoParts[1], "/dev/")
-		if !claudeRunningOn(paneTty) {
-			continue // no live claude in this pane — drop stale row
+		parts := strings.SplitN(line, "\t", 8)
+		if len(parts) != 8 {
+			continue
 		}
-		paneTitle := raw
+		panes = append(panes, tmuxPane{
+			id:      parts[0],
+			tty:     strings.TrimPrefix(parts[1], "/dev/"),
+			session: parts[2],
+			winIdx:  parts[3],
+			winName: parts[4],
+			paneIdx: parts[5],
+			title:   parts[6],
+			path:    parts[7],
+		})
+	}
+	return panes
+}
+
+func projectName(path string) string {
+	path = strings.TrimRight(path, "/")
+	if path == "" {
+		return ""
+	}
+	if path == homeDir {
+		return "~"
+	}
+	parts := strings.Split(path, "/")
+	return parts[len(parts)-1]
+}
+
+func parseElapsedSeconds(value string) (int64, bool) {
+	dayParts := strings.SplitN(value, "-", 2)
+	days := int64(0)
+	timePart := value
+	if len(dayParts) == 2 {
+		n, err := strconv.ParseInt(dayParts[0], 10, 64)
+		if err != nil {
+			return 0, false
+		}
+		days = n
+		timePart = dayParts[1]
+	}
+
+	parts := strings.Split(timePart, ":")
+	total := days * 24 * 60 * 60
+	switch len(parts) {
+	case 2:
+		mins, err1 := strconv.ParseInt(parts[0], 10, 64)
+		secs, err2 := strconv.ParseInt(parts[1], 10, 64)
+		if err1 != nil || err2 != nil {
+			return 0, false
+		}
+		return total + mins*60 + secs, true
+	case 3:
+		hours, err1 := strconv.ParseInt(parts[0], 10, 64)
+		mins, err2 := strconv.ParseInt(parts[1], 10, 64)
+		secs, err3 := strconv.ParseInt(parts[2], 10, 64)
+		if err1 != nil || err2 != nil || err3 != nil {
+			return 0, false
+		}
+		return total + hours*60*60 + mins*60 + secs, true
+	default:
+		return 0, false
+	}
+}
+
+func parseAgentProcess(line string) (agentProcess, bool) {
+	fields := strings.Fields(line)
+	if len(fields) < 3 {
+		return agentProcess{}, false
+	}
+	elapsed, ok := parseElapsedSeconds(fields[0])
+	if !ok {
+		return agentProcess{}, false
+	}
+	comm := fields[1]
+	args := strings.Join(fields[2:], " ")
+
+	switch {
+	case comm == "claude" || strings.HasPrefix(args, "claude ") || strings.HasSuffix(args, "/claude"):
+		return agentProcess{name: "Claude", startedAt: time.Now().Unix() - elapsed}, true
+	case strings.Contains(args, "/bin/codex ") ||
+		strings.Contains(args, "@openai/codex") ||
+		strings.Contains(args, "/codex/codex "):
+		return agentProcess{name: "Codex", startedAt: time.Now().Unix() - elapsed}, true
+	default:
+		return agentProcess{}, false
+	}
+}
+
+// agentRunningOn returns the first known CLI agent bound to the given terminal.
+// tty should be the basename (e.g. "ttys003"), no "/dev/".
+func agentRunningOn(tty string) (agentProcess, bool) {
+	if tty == "" {
+		return agentProcess{}, false
+	}
+	out, err := exec.Command("/bin/ps", "-t", tty, "-o", "etime=", "-o", "comm=", "-o", "args=").Output()
+	if err != nil {
+		return agentProcess{}, false
+	}
+	for _, line := range strings.Split(string(out), "\n") {
+		if proc, ok := parseAgentProcess(line); ok {
+			return proc, true
+		}
+	}
+	return agentProcess{}, false
+}
+
+func parseStatusDurationSeconds(line string) (int64, bool) {
+	start := strings.Index(line, "(")
+	if start < 0 {
+		return 0, false
+	}
+	end := strings.Index(line[start+1:], ")")
+	if end < 0 {
+		return 0, false
+	}
+	segment := line[start+1 : start+1+end]
+	var total int64
+	seen := false
+	for _, field := range strings.Fields(segment) {
+		field = strings.Trim(field, ",;")
+		if field == "·" || field == "•" {
+			break
+		}
+		if len(field) < 2 {
+			continue
+		}
+		unit := field[len(field)-1]
+		n, err := strconv.ParseInt(field[:len(field)-1], 10, 64)
+		if err != nil {
+			continue
+		}
+		switch unit {
+		case 'd':
+			total += n * 24 * 60 * 60
+		case 'h':
+			total += n * 60 * 60
+		case 'm':
+			total += n * 60
+		case 's':
+			total += n
+		default:
+			continue
+		}
+		seen = true
+	}
+	return total, seen
+}
+
+func paneShowsActiveTurn(paneID string) bool {
+	out, err := exec.Command(tmuxBin, "capture-pane", "-p", "-t", paneID).Output()
+	if err != nil {
+		return false
+	}
+
+	lines := strings.Split(strings.TrimRight(string(out), "\n"), "\n")
+	checked := 0
+	stale := false
+	interruptible := false
+	for i := len(lines) - 1; i >= 0 && checked < 8; i-- {
+		line := strings.TrimSpace(lines[i])
+		if line == "" {
+			continue
+		}
+		checked++
+		lower := strings.ToLower(line)
+		if strings.Contains(lower, "working") ||
+			strings.Contains(lower, "processing") ||
+			strings.Contains(lower, "thinking") {
+			if secs, ok := parseStatusDurationSeconds(line); ok && secs > 6*60*60 {
+				stale = true
+			}
+		}
+		if strings.Contains(lower, "esc to interrupt") {
+			interruptible = interruptible || strings.Contains(lower, "working") ||
+				strings.Contains(lower, "processing") ||
+				strings.Contains(lower, "bypass permissions") ||
+				strings.Contains(line, "⏵")
+		}
+	}
+	return interruptible && !stale
+}
+
+// loadRunning scans live tmux panes for known agent processes. The queue
+// maintained by notify-running-{start,end}.sh is a timestamp cache, not the
+// source of truth, so Codex panes and hook misses still show up.
+func loadRunning() []Notification {
+	queue := readRunningQueue()
+	var result []Notification
+
+	for _, pane := range loadTmuxPanes() {
+		proc, ok := agentRunningOn(pane.tty)
+		if !ok {
+			continue
+		}
+		if !paneShowsActiveTurn(pane.id) {
+			continue
+		}
+		if strings.HasPrefix(pane.title, "✓ ") {
+			continue
+		}
+
+		paneTitle := pane.title
 		for _, pfx := range []string{"✓ ", "✳ "} {
 			paneTitle = strings.TrimPrefix(paneTitle, pfx)
 		}
 		if paneTitle == "" {
-			paneTitle = window
+			paneTitle = pane.winName
 		}
 
-		kept = append(kept, line)
+		entry := queue[pane.id]
+		project := entry.project
+		if project == "" {
+			project = projectName(pane.path)
+		}
+		if proc.name != "" && project != "" {
+			project = proc.name + " · " + project
+		}
+		ts := entry.ts
+		if ts == "" {
+			ts = strconv.FormatInt(proc.startedAt, 10)
+		}
+
 		result = append(result, Notification{
 			ts:         ts,
-			target:     target,
-			client:     client,
+			target:     pane.id,
+			client:     entry.client,
 			project:    project,
-			session:    session,
-			windowName: window,
-			paneIndex:  paneIdx,
+			session:    pane.session,
+			windowName: pane.winName,
+			paneIndex:  pane.paneIdx,
 			paneTitle:  paneTitle,
 			running:    true,
 			timeAgo:    ago(ts),
 		})
 	}
-	// Rewrite file if we dropped any stale rows.
-	if len(kept) != len(lines) {
-		out := strings.Join(kept, "\n")
-		if len(kept) > 0 {
-			out += "\n"
-		}
-		tmp := runningFile + ".tmp"
-		if err := os.WriteFile(tmp, []byte(out), 0o644); err == nil {
-			_ = os.Rename(tmp, runningFile)
-		}
-	}
+
 	sort.SliceStable(result, func(i, j int) bool {
 		// Most recently started first.
 		return result[i].ts > result[j].ts
@@ -318,8 +529,8 @@ type itemDelegate struct {
 	marked map[string]bool
 }
 
-func (d itemDelegate) Height() int                              { return 1 }
-func (d itemDelegate) Spacing() int                             { return 0 }
+func (d itemDelegate) Height() int                             { return 1 }
+func (d itemDelegate) Spacing() int                            { return 0 }
 func (d itemDelegate) Update(_ tea.Msg, _ *list.Model) tea.Cmd { return nil }
 
 func (d itemDelegate) Render(w io.Writer, m list.Model, index int, item list.Item) {

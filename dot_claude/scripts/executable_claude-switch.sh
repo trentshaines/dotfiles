@@ -8,8 +8,12 @@ TARGET="$1"
 CLIENT="$2"
 NOW=$(date +%s)
 
-# Switch tmux (skip Alacritty activation - already focused from picker)
-$TMUX_BIN switch-client -c "$CLIENT" -t "$TARGET"
+# Switch tmux. Queue rows include a client tty; live-scanned agent panes may not.
+if [[ -n "$CLIENT" ]]; then
+    $TMUX_BIN switch-client -c "$CLIENT" -t "$TARGET"
+else
+    $TMUX_BIN switch-client -t "$TARGET"
+fi
 
 # Update last_visited timestamp for this target (field 8)
 if [[ -f "$QUEUE_FILE" ]]; then
