@@ -1,0 +1,23 @@
+#!/bin/bash
+# Installs /etc/sudoers.d/pmset so `sudo pmset ...` runs without a password prompt.
+# Used by the Raycast "Toggle Disable Sleep" script.
+set -euo pipefail
+
+CONTENT='{{ .chezmoi.username }} ALL=(ALL) NOPASSWD: /usr/bin/pmset'
+TARGET=/etc/sudoers.d/pmset
+
+TMP=$(mktemp)
+trap 'rm -f "$TMP"' EXIT
+printf '%s\n' "$CONTENT" > "$TMP"
+
+if ! sudo visudo -cf "$TMP" >/dev/null; then
+    echo "ERROR: sudoers syntax invalid for $TMP" >&2
+    exit 1
+fi
+
+if sudo test -f "$TARGET" && sudo cmp -s "$TMP" "$TARGET"; then
+    exit 0
+fi
+
+sudo install -m 0440 -o root -g wheel "$TMP" "$TARGET"
+echo "Installed $TARGET"
