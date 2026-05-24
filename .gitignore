@@ -1,4 +1,5 @@
 .autowt.toml
+.omc/
 
 # Project-specific Claude skills (not shared across machines)
 dot_claude/skills/implement-decagon-pr/

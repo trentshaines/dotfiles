@@ -39,3 +39,4 @@ Library/Application Support/espanso/match/local.yml
 .codex/vendor_imports/
 .codex/skills/
 .config/anthropic/
+.aws/
