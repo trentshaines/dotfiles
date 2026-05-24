@@ -1,16 +1,17 @@
 # Create new git directory and open with tmuxinator
 function tns
-    set -l project_name $argv[1]
+    set -l project_path $argv[1]
     set -l template (test -n "$argv[2]"; and echo $argv[2]; or echo "default")
 
-    if test -z "$project_name"
-        echo "Usage: tns <project-name> [template]"
-        echo "  Creates ~/git/<project-name>, initializes git, and opens with tmuxinator"
-        echo "  template: tmuxinator template to use (default: default)"
+    if test -z "$project_path"
+        echo "Usage: tns <path> [template]"
+        echo "  Creates ~/git/<path>, initializes git, and opens with tmuxinator"
+        echo "  Examples: tns myproject, tns metr/myproject"
         return 1
     end
 
-    set -l project_dir "$HOME/git/$project_name"
+    set -l project_dir "$HOME/git/$project_path"
+    set -l project_name (basename $project_path)
 
     # Save original directory
     set -l original_dir (pwd)

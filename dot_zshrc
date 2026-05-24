@@ -78,17 +78,18 @@ ts() {
 
 # Create new git directory and open with tmuxinator
 tns() {
-  local project_name="$1"
+  local project_path="$1"
   local template="${2:-default}"
 
-  if [[ -z "$project_name" ]]; then
-    echo "Usage: tns <project-name> [template]"
-    echo "  Creates ~/git/<project-name>, initializes git, and opens with tmuxinator"
-    echo "  template: tmuxinator template to use (default: default)"
+  if [[ -z "$project_path" ]]; then
+    echo "Usage: tns <path> [template]"
+    echo "  Creates ~/git/<path>, initializes git, and opens with tmuxinator"
+    echo "  Examples: tns myproject, tns metr/myproject"
     return 1
   fi
 
-  local project_dir="$HOME/git/$project_name"
+  local project_dir="$HOME/git/$project_path"
+  local project_name="$(basename "$project_path")"
 
   # Check if directory already exists
   if [[ -d "$project_dir" ]]; then
@@ -160,81 +161,10 @@ ff() {
     aerospace list-windows --all | fzf --bind 'enter:execute(bash -c "aerospace focus --window-id {1}")+abort'
 }
 
-_fuzzy_select_project_dir() {
-    local selected_dir
-    # Don't echo scanning message here, let callers do it.
-    selected_dir=$( ( \
-            # Find top-level project dirs in ~/git
-            find ~/git -maxdepth 1 -mindepth 1 -type d -print0; \
-            # Find service dirs like ~/git/project/services/service_name
-            find ~/git -mindepth 3 -maxdepth 3 -path '*/services/*' -type d -print0; \
-            # Find lib dirs like ~/git/project/libs/lib_name
-            find ~/git -mindepth 3 -maxdepth 3 -path '*/libs/*' -type d -print0 \
-        ) 2>/dev/null | \
-        sort -zu | \
-        fzf --read0 --prompt="Select Project/Service/Lib Dir > ")
-
-    # Output the selected directory path (will be empty if cancelled)
-    echo "$selected_dir"
-    return 0
-}
-
 # IDE Launchers
 alias ri='nohup rider . >/dev/null 2>&1 &'
 # Rider
 export PATH="/Applications/Rider.app/Contents/MacOS:$PATH"
-# Rider Find
-rf() {
-    local selected_dir
-    local err_occurred=0
-
-    # Updated echo message
-    echo "Scanning for directories (~/git/*, ~/git/*/services/*, ~/git/*/libs/*) for Rider..."
-    selected_dir=$(_fuzzy_select_project_dir) # Capture output
-
-    if [[ -n "$selected_dir" ]]; then
-        if [[ -d "$selected_dir" ]]; then
-            echo "Opening '$selected_dir' with Rider..."
-            nohup rider "$selected_dir" >/dev/null 2>&1 &
-        else
-            echo "Error: '$selected_dir' is not a valid directory." >&2
-            err_occurred=1
-        fi
-    else
-        echo "No directory selected for Rider."
-        # No error needed for cancellation
-    fi
-    return "$err_occurred"
-}
-
-# Cursor Find
-cf() {
-    local selected_dir
-    local err_occurred=0
-
-    # Updated echo message
-    echo "Scanning for directories (~/git/*, ~/git/*/services/*, ~/git/*/libs/*) for Cursor..."
-    selected_dir=$(_fuzzy_select_project_dir) # Capture output
-
-    if [[ -n "$selected_dir" ]]; then
-        if [[ -d "$selected_dir" ]]; then
-            echo "Opening '$selected_dir' with Cursor..."
-            # Assuming 'cursor .' works, we need 'cursor path'
-            cursor "$selected_dir"
-            # Check exit status if desired
-            if [[ $? -ne 0 ]]; then
-                echo "Warning: 'cursor' exited with non-zero status." >&2
-            fi
-        else
-            echo "Error: '$selected_dir' is not a valid directory." >&2
-            err_occurred=1
-        fi
-    else
-        echo "No directory selected for Cursor."
-    fi
-    return "$err_occurred"
-}
-
 # Git
 alias gc="git commit -m"
 alias gca="git add . && git commit -a -m"

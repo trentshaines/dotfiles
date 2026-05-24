@@ -11,8 +11,8 @@ function wtc --description "Clean up merged worktrees across all ~/git repos"
     set -l total_removed 0
     set -l total_switched 0
 
-    for repo_path in $git_root/*/
-        # Only process main repos (.git directory, not .git file used by linked worktrees)
+    for repo_path in (find $git_root -mindepth 1 -maxdepth 3 -type d -exec test -d {}/.git \; -print -prune)
+        # .git directory (not .git file) means main repo, not linked worktree
         test -d "$repo_path/.git" || continue
 
         set -l repo_name (basename $repo_path)
