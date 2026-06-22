@@ -91,6 +91,26 @@
             "command": "~/.claude/hooks/notify-running-end.sh"
           }
         ]
+      },
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash '{{ .chezmoi.homeDir }}/.tmux/plugins/tmux-assistant-resurrect/hooks/claude-session-cleanup.sh'"
+          }
+        ]
+      }
+    ],
+    "SessionStart": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash '{{ .chezmoi.homeDir }}/.tmux/plugins/tmux-assistant-resurrect/hooks/claude-session-track.sh'"
+          }
+        ]
       }
     ]
   },

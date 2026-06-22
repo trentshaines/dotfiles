@@ -19,7 +19,7 @@
 	cmd = nvim -d \"$LOCAL\" \"$REMOTE\"
 [core]
 	autocrlf = input
-	excludesfile = /Users/trent/.gitignore_global
+	excludesfile = {{ .chezmoi.homeDir }}/.gitignore_global
 	pager = delta
 [interactive]
 	diffFilter = delta --color-only
