@@ -1,7 +1,7 @@
 #!/bin/bash
 
 TMUX_BIN="/opt/homebrew/bin/tmux"
-QUEUE_FILE="/tmp/claude-notifications.queue"
+QUEUE_FILE="${AGENT_NOTIFICATION_FILE:-/tmp/claude-notifications.queue}"
 
 # $TMUX_PANE is the pane ID where this hook was triggered
 PANE_ID="$TMUX_PANE"
@@ -23,13 +23,24 @@ TIMESTAMP=$(date +%s)
 # Full target: session:window.pane
 TARGET="$SESSION:$WINDOW.$PANE_INDEX"
 
-# Remove old entry for same target using awk (more reliable than grep with tabs)
-if [[ -f "$QUEUE_FILE" ]]; then
-    awk -F'\t' -v target="$TARGET" '$2 != target' "$QUEUE_FILE" > "$QUEUE_FILE.tmp" && mv "$QUEUE_FILE.tmp" "$QUEUE_FILE"
-fi
+# Atomically replace this pane's row while holding the same lock used by
+# picker cleanup, focus updates, and dismissals.
+(
+    /usr/bin/lockf -s -t 2 9 || exit 0
+    TMP=$(mktemp "${QUEUE_FILE}.tmp.XXXXXX") || exit 0
+    trap 'rm -f "$TMP"' EXIT
 
-# Add new entry: TIMESTAMP TARGET CLIENT PROJECT SESSION WINDOW_NAME PANE_INDEX LAST_VISITED(0=never)
-echo -e "$TIMESTAMP\t$TARGET\t$CLIENT\t$PROJECT\t$SESSION\t$WINDOW_NAME\t$PANE_INDEX\t0" >> "$QUEUE_FILE"
+    if [[ -f "$QUEUE_FILE" ]]; then
+        awk -F'\t' -v target="$TARGET" '$2 != target' "$QUEUE_FILE" > "$TMP"
+    else
+        : > "$TMP"
+    fi
+
+    # TIMESTAMP TARGET CLIENT PROJECT SESSION WINDOW_NAME PANE_INDEX LAST_VISITED
+    printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\t0\n' \
+        "$TIMESTAMP" "$TARGET" "$CLIENT" "$PROJECT" "$SESSION" "$WINDOW_NAME" "$PANE_INDEX" >> "$TMP"
+    mv "$TMP" "$QUEUE_FILE"
+) 9>"${QUEUE_FILE}.lock"
 
 # Send notification only if user isn't already looking at this pane
 if [[ "$ALREADY_FOCUSED" == "false" ]]; then
