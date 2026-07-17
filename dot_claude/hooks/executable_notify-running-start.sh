@@ -3,7 +3,7 @@
 # Lifecycle pair with notify-running-end.sh (Stop hook).
 
 TMUX_BIN="/opt/homebrew/bin/tmux"
-RUNNING_FILE="/tmp/claude-running.queue"
+RUNNING_FILE="${AGENT_RUNNING_FILE:-/tmp/claude-running.queue}"
 PANE_ID="$TMUX_PANE"
 
 [[ -z "$PANE_ID" ]] && exit 0
@@ -17,10 +17,21 @@ PROJECT=$(basename "$PWD")
 TARGET="$SESSION:$WINDOW.$PANE_INDEX"
 TIMESTAMP=$(date +%s)
 
-# Remove any existing row for this pane_id (overwrite-on-prompt semantics)
-if [[ -f "$RUNNING_FILE" ]]; then
-    awk -F'\t' -v p="$PANE_ID" '$2 != p' "$RUNNING_FILE" > "$RUNNING_FILE.tmp" && mv "$RUNNING_FILE.tmp" "$RUNNING_FILE"
-fi
+# Serialize the read-modify-write. Multiple agents commonly start together,
+# and an unlocked shared .tmp file can silently discard another pane's row.
+(
+    /usr/bin/lockf -s -t 2 9 || exit 0
+    TMP=$(mktemp "${RUNNING_FILE}.tmp.XXXXXX") || exit 0
+    trap 'rm -f "$TMP"' EXIT
 
-# Format: TIMESTAMP PANE_ID TARGET CLIENT PROJECT SESSION WINDOW_NAME PANE_INDEX
-echo -e "$TIMESTAMP\t$PANE_ID\t$TARGET\t$CLIENT\t$PROJECT\t$SESSION\t$WINDOW_NAME\t$PANE_INDEX" >> "$RUNNING_FILE"
+    if [[ -f "$RUNNING_FILE" ]]; then
+        awk -F'\t' -v p="$PANE_ID" '$2 != p' "$RUNNING_FILE" > "$TMP"
+    else
+        : > "$TMP"
+    fi
+
+    # Format: TIMESTAMP PANE_ID TARGET CLIENT PROJECT SESSION WINDOW_NAME PANE_INDEX
+    printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' \
+        "$TIMESTAMP" "$PANE_ID" "$TARGET" "$CLIENT" "$PROJECT" "$SESSION" "$WINDOW_NAME" "$PANE_INDEX" >> "$TMP"
+    mv "$TMP" "$RUNNING_FILE"
+) 9>"${RUNNING_FILE}.lock"
