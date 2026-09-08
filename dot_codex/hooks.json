@@ -27,7 +27,7 @@
           },
           {
             "type": "command",
-            "command": "$HOME/.claude/hooks/notify-complete.sh"
+            "command": "AGENT_NOTIFICATION_AGENT=Codex AGENT_NOTIFICATION_TITLE=Codex $HOME/.claude/hooks/notify-complete.sh"
           },
           {
             "type": "command",

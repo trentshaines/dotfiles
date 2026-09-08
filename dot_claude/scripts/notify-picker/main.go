@@ -6,9 +6,11 @@ import (
 	"io"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"sort"
 	"strconv"
 	"strings"
+	"syscall"
 	"time"
 
 	"github.com/charmbracelet/bubbles/key"
@@ -31,6 +33,7 @@ var (
 type Notification struct {
 	ts         string
 	target     string
+	paneID     string
 	client     string
 	project    string
 	session    string
@@ -40,6 +43,8 @@ type Notification struct {
 	done       bool
 	visited    bool
 	running    bool
+	scheduled  bool   // running via a background poll/wakeup rather than an active turn
+	agent      string // "Claude" | "Codex" | "OpenCode" | ""
 	timeAgo    string
 }
 
@@ -63,50 +68,94 @@ const (
 	staleUnvisitedTTL = 24 * 60 * 60     // unvisited rows: 24h
 )
 
-func sweepStale() {
-	data, err := os.ReadFile(queueFile)
+func withFileLock(path string, fn func()) {
+	lock, err := os.OpenFile(path+".lock", os.O_CREATE|os.O_RDWR, 0o644)
 	if err != nil {
 		return
 	}
-	now := time.Now().Unix()
-	visitedCutoff := now - int64(staleVisitedTTL)
-	unvisitedCutoff := now - int64(staleUnvisitedTTL)
-	lines := strings.Split(string(data), "\n")
-	kept := make([]string, 0, len(lines))
-	dropped := 0
-	for _, line := range lines {
-		if line == "" {
-			continue
-		}
-		parts := strings.Split(line, "\t")
-		if len(parts) >= 8 {
-			ts, _ := strconv.ParseInt(parts[0], 10, 64)
-			visited, _ := strconv.ParseInt(parts[7], 10, 64)
-			// Drop visited rows older than 7 days
-			if visited > 0 && visited < visitedCutoff {
-				dropped++
-				continue
-			}
-			// Drop unvisited rows older than 24h
-			if visited == 0 && ts > 0 && ts < unvisitedCutoff {
-				dropped++
-				continue
-			}
-		}
-		kept = append(kept, line)
-	}
-	if dropped == 0 {
+	defer lock.Close()
+	if err := syscall.Flock(int(lock.Fd()), syscall.LOCK_EX); err != nil {
 		return
 	}
-	out := strings.Join(kept, "\n")
-	if len(kept) > 0 {
-		out += "\n"
+	defer syscall.Flock(int(lock.Fd()), syscall.LOCK_UN)
+	fn()
+}
+
+func atomicWrite(path string, data []byte, mode os.FileMode) error {
+	tmp, err := os.CreateTemp(filepath.Dir(path), filepath.Base(path)+".tmp.*")
+	if err != nil {
+		return err
 	}
-	tmp := queueFile + ".tmp"
-	if err := os.WriteFile(tmp, []byte(out), 0o644); err != nil {
-		return
+	tmpName := tmp.Name()
+	defer os.Remove(tmpName)
+
+	if err := tmp.Chmod(mode); err != nil {
+		tmp.Close()
+		return err
 	}
-	_ = os.Rename(tmp, queueFile)
+	if _, err := tmp.Write(data); err != nil {
+		tmp.Close()
+		return err
+	}
+	if err := tmp.Close(); err != nil {
+		return err
+	}
+	return os.Rename(tmpName, path)
+}
+
+func sweepStale() {
+	withFileLock(queueFile, func() {
+		data, err := os.ReadFile(queueFile)
+		if err != nil {
+			return
+		}
+		now := time.Now().Unix()
+		visitedCutoff := now - int64(staleVisitedTTL)
+		unvisitedCutoff := now - int64(staleUnvisitedTTL)
+		lines := strings.Split(string(data), "\n")
+		kept := make([]string, 0, len(lines))
+		dropped := 0
+		for _, line := range lines {
+			if line == "" {
+				continue
+			}
+			parts := strings.Split(line, "\t")
+			if len(parts) >= 8 {
+				ts, _ := strconv.ParseInt(parts[0], 10, 64)
+				visited, _ := strconv.ParseInt(parts[7], 10, 64)
+				// Drop visited rows older than 7 days.
+				if visited > 0 && visited < visitedCutoff {
+					dropped++
+					continue
+				}
+				// Drop unvisited rows older than 24h.
+				if visited == 0 && ts > 0 && ts < unvisitedCutoff {
+					dropped++
+					continue
+				}
+			}
+			kept = append(kept, line)
+		}
+		if dropped == 0 {
+			return
+		}
+		out := strings.Join(kept, "\n")
+		if len(kept) > 0 {
+			out += "\n"
+		}
+		_ = atomicWrite(queueFile, []byte(out), 0o644)
+	})
+}
+
+// Old queue rows have no source field; infer those from the live pane only.
+func notificationAgent(parts []string, live string) string {
+	if len(parts) > 8 {
+		switch parts[8] {
+		case "Claude", "Codex", "OpenCode":
+			return parts[8]
+		}
+	}
+	return live
 }
 
 func loadNotifications() []Notification {
@@ -118,6 +167,7 @@ func loadNotifications() []Notification {
 	}
 	defer f.Close()
 
+	processes, _ := scanProcesses()
 	var out []Notification
 	scanner := bufio.NewScanner(f)
 	for scanner.Scan() {
@@ -134,9 +184,13 @@ func loadNotifications() []Notification {
 			continue
 		}
 
-		raw := ""
-		if b, err := exec.Command(tmuxBin, "display-message", "-t", target, "-p", "#{pane_title}").Output(); err == nil {
-			raw = strings.TrimSpace(string(b))
+		raw, paneID, tty := "", "", ""
+		if b, err := exec.Command(tmuxBin, "display-message", "-t", target, "-p", "#{pane_id}\t#{pane_tty}\t#{pane_title}").Output(); err == nil {
+			context := strings.SplitN(strings.TrimRight(string(b), "\n"), "\t", 3)
+			if len(context) != 3 {
+				continue
+			}
+			paneID, tty, raw = context[0], strings.TrimPrefix(context[1], "/dev/"), context[2]
 		} else {
 			// Pane gone — auto-dismiss so it never shows again
 			exec.Command(deleteScr, target).Run()
@@ -152,10 +206,11 @@ func loadNotifications() []Notification {
 		}
 
 		out = append(out, Notification{
-			ts: ts, target: target, client: client,
+			ts: ts, target: target, paneID: paneID, client: client,
 			project: project, session: session, windowName: window,
 			paneIndex: paneIdx, paneTitle: paneTitle, done: done,
 			visited: visited != "0",
+			agent:   notificationAgent(parts, processes[tty].name),
 			timeAgo: ago(ts),
 		})
 	}
@@ -180,6 +235,7 @@ type runningQueueEntry struct {
 type agentProcess struct {
 	name      string
 	startedAt int64
+	pid       int
 }
 
 type tmuxPane struct {
@@ -310,36 +366,120 @@ func parseAgentProcess(line string) (agentProcess, bool) {
 		return agentProcess{}, false
 	}
 	comm := fields[1]
-	args := strings.Join(fields[2:], " ")
+	args := fields[2:]
+	commBase := filepath.Base(comm)
+	argBase := func(i int) string {
+		if i >= len(args) {
+			return ""
+		}
+		return filepath.Base(strings.Trim(args[i], `"'`))
+	}
 
 	switch {
-	case comm == "claude" || strings.HasPrefix(args, "claude ") || strings.HasSuffix(args, "/claude"):
+	case commBase == "claude" || argBase(0) == "claude" ||
+		((argBase(0) == "node" || argBase(0) == "bun") && argBase(1) == "claude"):
 		return agentProcess{name: "Claude", startedAt: time.Now().Unix() - elapsed}, true
-	case strings.Contains(args, "/bin/codex ") ||
-		strings.Contains(args, "@openai/codex") ||
-		strings.Contains(args, "/codex/codex "):
+	case argBase(0) == "codex" ||
+		((argBase(0) == "node" || argBase(0) == "bun") && argBase(1) == "codex"):
 		return agentProcess{name: "Codex", startedAt: time.Now().Unix() - elapsed}, true
+	case commBase == "opencode" || argBase(0) == "opencode" ||
+		((argBase(0) == "node" || argBase(0) == "bun") && argBase(1) == "opencode"):
+		return agentProcess{name: "OpenCode", startedAt: time.Now().Unix() - elapsed}, true
 	default:
 		return agentProcess{}, false
 	}
 }
 
-// agentRunningOn returns the first known CLI agent bound to the given terminal.
-// tty should be the basename (e.g. "ttys003"), no "/dev/".
-func agentRunningOn(tty string) (agentProcess, bool) {
-	if tty == "" {
-		return agentProcess{}, false
+// isBackgroundShell reports whether a command is a shell or sleep — the shape a
+// scheduled poll/wakeup takes when an agent parks work in a background process.
+func isBackgroundShell(comm string) bool {
+	switch comm {
+	case "bash", "zsh", "sh", "dash", "fish", "sleep":
+		return true
 	}
-	out, err := exec.Command("/bin/ps", "-t", tty, "-o", "etime=", "-o", "comm=", "-o", "args=").Output()
+	return false
+}
+
+// scanProcesses takes one process-table snapshot and returns two things:
+//   - known CLI agents indexed by terminal (faster and more internally
+//     consistent than running ps once per tmux pane), and
+//   - the set of terminals whose agent has a live *detached* background shell.
+//
+// Claude Code, Codex, and OpenCode run background Bash via setsid, so a
+// scheduled poll or wakeup shows up as a shell with no controlling terminal
+// ("??") whose parent chain leads back to the agent still sitting on its pane.
+// That agent is genuinely still working, so its pane should read as running
+// even between visible turns.
+func scanProcesses() (map[string]agentProcess, map[string]bool) {
+	agents := make(map[string]agentProcess)
+	background := make(map[string]bool)
+
+	out, err := exec.Command("/bin/ps", "ax",
+		"-o", "pid=", "-o", "ppid=", "-o", "tty=", "-o", "etime=", "-o", "comm=", "-o", "args=").Output()
 	if err != nil {
-		return agentProcess{}, false
+		return agents, background
 	}
+
+	ppidByPID := make(map[int]int)        // pid -> parent pid, for every process
+	agentTTYByPID := make(map[int]string) // agent pid -> its terminal
+	var detachedPPIDs []int               // parents of detached background shells
+
 	for _, line := range strings.Split(string(out), "\n") {
-		if proc, ok := parseAgentProcess(line); ok {
-			return proc, true
+		fields := strings.Fields(line)
+		if len(fields) < 6 {
+			continue
+		}
+		pid, err1 := strconv.Atoi(fields[0])
+		ppid, err2 := strconv.Atoi(fields[1])
+		if err1 != nil || err2 != nil {
+			continue
+		}
+		ppidByPID[pid] = ppid
+
+		tty := fields[2]
+		comm := filepath.Base(fields[4])
+		// parseAgentProcess expects the "etime comm args…" tail (everything
+		// after the tty column), matching the original ps column layout.
+		rest := strings.Join(fields[3:], " ")
+
+		if tty == "??" || tty == "?" {
+			// Detached — a candidate scheduled poll/wakeup helper.
+			if isBackgroundShell(comm) {
+				detachedPPIDs = append(detachedPPIDs, ppid)
+			}
+			continue
+		}
+
+		ttyName := strings.TrimPrefix(tty, "/dev/")
+		if proc, ok := parseAgentProcess(rest); ok {
+			proc.pid = pid
+			agentTTYByPID[pid] = ttyName
+			// A node launcher and its native child can both match. Keep the
+			// older process so the fallback timestamp represents the whole CLI
+			// session (and so it is the common ancestor of any helpers).
+			if existing, found := agents[ttyName]; !found || proc.startedAt < existing.startedAt {
+				agents[ttyName] = proc
+			}
 		}
 	}
-	return agentProcess{}, false
+
+	return agents, backgroundTTYs(detachedPPIDs, ppidByPID, agentTTYByPID)
+}
+
+// backgroundTTYs walks each detached background shell (identified by its parent
+// pid) up the process tree and marks the terminal of the first agent ancestor
+// it reaches. Pure so it can be tested without a live process table.
+func backgroundTTYs(detachedPPIDs []int, ppidByPID map[int]int, agentTTYByPID map[int]string) map[string]bool {
+	out := make(map[string]bool)
+	for _, ppid := range detachedPPIDs {
+		for cur, hops := ppid, 0; cur > 1 && hops < 32; cur, hops = ppidByPID[cur], hops+1 {
+			if tty, ok := agentTTYByPID[cur]; ok {
+				out[tty] = true
+				break
+			}
+		}
+	}
+	return out
 }
 
 func parseStatusDurationSeconds(line string) (int64, bool) {
@@ -384,38 +524,67 @@ func parseStatusDurationSeconds(line string) (int64, bool) {
 	return total, seen
 }
 
-func paneShowsActiveTurn(paneID string) bool {
-	out, err := exec.Command(tmuxBin, "capture-pane", "-p", "-t", paneID).Output()
-	if err != nil {
-		return false
-	}
-
-	lines := strings.Split(strings.TrimRight(string(out), "\n"), "\n")
+// activeTurnFromScreen recognizes the shared, user-facing contract exposed by
+// both CLIs: an active turn offers "esc to interrupt". Agent-specific spinner
+// verbs change frequently and can wrap independently in narrow panes, so they
+// are deliberately not part of the predicate. The returned age is best-effort.
+func activeTurnFromScreen(screen string) (int64, bool) {
+	lines := strings.Split(strings.TrimRight(screen, "\n"), "\n")
 	checked := 0
-	stale := false
-	interruptible := false
-	for i := len(lines) - 1; i >= 0 && checked < 8; i-- {
+	for i := len(lines) - 1; i >= 0 && checked < 24; i-- {
 		line := strings.TrimSpace(lines[i])
 		if line == "" {
 			continue
 		}
 		checked++
 		lower := strings.ToLower(line)
-		if strings.Contains(lower, "working") ||
-			strings.Contains(lower, "processing") ||
-			strings.Contains(lower, "thinking") {
-			if secs, ok := parseStatusDurationSeconds(line); ok && secs > 6*60*60 {
-				stale = true
-			}
+
+		// These appear below any older progress text and mean the CLI is idle
+		// or waiting for user input.
+		if line == "❯" ||
+			strings.Contains(lower, "esc to cancel") ||
+			strings.HasPrefix(line, "■ ") {
+			return 0, false
 		}
-		if strings.Contains(lower, "esc to interrupt") {
-			interruptible = interruptible || strings.Contains(lower, "working") ||
-				strings.Contains(lower, "processing") ||
-				strings.Contains(lower, "bypass permissions") ||
-				strings.Contains(line, "⏵")
+		if strings.Contains(lower, "esc to interrupt") ||
+			strings.Contains(lower, "esc interrupt") {
+			if secs, ok := parseStatusDurationSeconds(line); ok {
+				return secs, true
+			}
+			// In a narrow pane the duration and interrupt hint can wrap onto
+			// adjacent lines.
+			for j := i - 1; j >= 0 && j >= i-2; j-- {
+				wrapped := strings.Join(lines[j:i+1], " ")
+				if secs, ok := parseStatusDurationSeconds(strings.TrimSpace(wrapped)); ok {
+					return secs, true
+				}
+			}
+			return 0, true
 		}
 	}
-	return interruptible && !stale
+	return 0, false
+}
+
+func paneActiveTurn(paneID string) (int64, bool) {
+	out, err := exec.Command(tmuxBin, "capture-pane", "-p", "-t", paneID).Output()
+	if err != nil {
+		return 0, false
+	}
+	return activeTurnFromScreen(string(out))
+}
+
+func turnTimestamp(queueTS string, procStartedAt, activeAge, now int64) string {
+	if activeAge > 0 {
+		detected := now - activeAge
+		if queued, err := strconv.ParseInt(queueTS, 10, 64); err != nil ||
+			queued < detected-90 || queued > detected+90 {
+			return strconv.FormatInt(detected, 10)
+		}
+	}
+	if queueTS != "" {
+		return queueTS
+	}
+	return strconv.FormatInt(procStartedAt, 10)
 }
 
 // loadRunning scans live tmux panes for known agent processes. The queue
@@ -423,17 +592,20 @@ func paneShowsActiveTurn(paneID string) bool {
 // source of truth, so Codex panes and hook misses still show up.
 func loadRunning() []Notification {
 	queue := readRunningQueue()
+	processes, background := scanProcesses()
 	var result []Notification
 
 	for _, pane := range loadTmuxPanes() {
-		proc, ok := agentRunningOn(pane.tty)
+		proc, ok := processes[pane.tty]
 		if !ok {
 			continue
 		}
-		if !paneShowsActiveTurn(pane.id) {
-			continue
-		}
-		if strings.HasPrefix(pane.title, "✓ ") {
+		activeAge, active := paneActiveTurn(pane.id)
+		scheduled := background[pane.tty]
+		// Show the pane while the agent is visibly working *or* while it has a
+		// scheduled poll/wakeup parked in a background shell. Skip only truly
+		// idle panes.
+		if !active && !scheduled {
 			continue
 		}
 
@@ -450,17 +622,12 @@ func loadRunning() []Notification {
 		if project == "" {
 			project = projectName(pane.path)
 		}
-		if proc.name != "" && project != "" {
-			project = proc.name + " · " + project
-		}
-		ts := entry.ts
-		if ts == "" {
-			ts = strconv.FormatInt(proc.startedAt, 10)
-		}
+		ts := turnTimestamp(entry.ts, proc.startedAt, activeAge, time.Now().Unix())
 
 		result = append(result, Notification{
 			ts:         ts,
 			target:     pane.id,
+			paneID:     pane.id,
 			client:     entry.client,
 			project:    project,
 			session:    pane.session,
@@ -468,6 +635,8 @@ func loadRunning() []Notification {
 			paneIndex:  pane.paneIdx,
 			paneTitle:  paneTitle,
 			running:    true,
+			scheduled:  !active && scheduled,
+			agent:      proc.name,
 			timeAgo:    ago(ts),
 		})
 	}
@@ -482,16 +651,23 @@ func loadRunning() []Notification {
 // loadAll returns the three tab buckets: unvisited queue rows, running panes
 // (live), visited queue rows. loadNotifications already runs sweepStale.
 func loadAll() [tabCount][]Notification {
-	queue := loadNotifications()
+	return notificationBuckets(loadNotifications(), loadRunning())
+}
+
+func notificationBuckets(queue, running []Notification) [tabCount][]Notification {
+	active := make(map[string]bool)
+	for _, n := range running {
+		active[n.paneID] = true
+	}
 	var unvisited, visited []Notification
 	for _, n := range queue {
 		if n.visited {
 			visited = append(visited, n)
-		} else {
+		} else if n.paneID == "" || !active[n.paneID] {
 			unvisited = append(unvisited, n)
 		}
 	}
-	return [tabCount][]Notification{unvisited, loadRunning(), visited}
+	return [tabCount][]Notification{unvisited, running, visited}
 }
 
 func ago(ts string) string {
@@ -509,17 +685,19 @@ func ago(ts string) string {
 
 // ── Columns ───────────────────────────────────────────────────────────────────
 
-type cols struct{ loc, task, timeW, proj int }
+type cols struct{ agent, loc, task, timeW, proj int }
 
 func makeCols(width int) cols {
-	// line layout: "  "(2) + status(2) + loc + "  " + task + "  " + time + "  " + proj
+	// line layout: "  "(marker,2) + status(2) + agent + "  " + loc + "  " +
+	//              task + "  " + time + "  " + proj
 	w := width - 4 // safety margin for list internal offset
-	timeW, proj, loc := 9, 20, 30
-	task := w - 2 - 2 - loc - 2 - 2 - timeW - 2 - proj
+	agent, timeW, proj, loc := 9, 9, 16, 26
+	// fixed overhead = marker(2) + status(2) + four "  " separators(8) = 12
+	task := w - 12 - agent - loc - timeW - proj
 	if task < 12 {
 		task = 12
 	}
-	return cols{loc: loc, task: task, timeW: timeW, proj: proj}
+	return cols{agent: agent, loc: loc, task: task, timeW: timeW, proj: proj}
 }
 
 // ── Delegate ──────────────────────────────────────────────────────────────────
@@ -532,6 +710,32 @@ type itemDelegate struct {
 func (d itemDelegate) Height() int                             { return 1 }
 func (d itemDelegate) Spacing() int                            { return 0 }
 func (d itemDelegate) Update(_ tea.Msg, _ *list.Model) tea.Cmd { return nil }
+
+// agentThemes gives each CLI a distinct color + lowercase label so Claude,
+// Codex, and OpenCode rows are told apart at a glance.
+var agentThemes = map[string]struct {
+	label string
+	style lipgloss.Style
+}{
+	"Claude":   {"claude", lipgloss.NewStyle().Foreground(ui.Cyan)},
+	"Codex":    {"codex", lipgloss.NewStyle().Foreground(ui.Green)},
+	"OpenCode": {"opencode", lipgloss.NewStyle().Foreground(ui.Orange)},
+}
+
+// agentCell renders the fixed-width, color-coded agent label. Unknown agents
+// render as blank padding so columns still line up; visited rows dim to match
+// the rest of the row.
+func agentCell(name string, width int, dim bool) string {
+	th, ok := agentThemes[name]
+	if !ok {
+		return strings.Repeat(" ", width)
+	}
+	text := ui.Pad(th.label, width)
+	if dim {
+		return ui.SDim.Render(text)
+	}
+	return th.style.Render(text)
+}
 
 func (d itemDelegate) Render(w io.Writer, m list.Model, index int, item list.Item) {
 	n, ok := item.(Notification)
@@ -560,25 +764,32 @@ func (d itemDelegate) Render(w io.Writer, m list.Model, index int, item list.Ite
 		}
 	}
 	if n.running {
-		// Live tmux row: agent currently working.
-		status = ui.SActive.Render("⠿ ")
+		if n.scheduled {
+			// Live, but parked on a scheduled poll/wakeup rather than an
+			// active turn — still running, just waiting to resume.
+			status = ui.SInfo.Render("◴ ")
+		} else {
+			// Live tmux row: agent currently working.
+			status = ui.SActive.Render("⠿ ")
+		}
 	}
 
 	locStr := n.session + " → " + n.windowName
 	taskStr := "[" + n.paneIndex + "] " + n.paneTitle
 
 	if sel {
-		// Whole-line highlight
-		line := marker + status +
-			ui.Pad(locStr, d.c.loc) + "  " +
+		// Keep the agent color even on the selected row; the rest of the line
+		// carries the bright/marked cursor signal.
+		agent := agentCell(n.agent, d.c.agent, false)
+		rest := ui.Pad(locStr, d.c.loc) + "  " +
 			ui.Pad(taskStr, d.c.task) + "  " +
 			ui.Pad(n.timeAgo, d.c.timeW) + "  " +
 			ui.Trunc(n.project, d.c.proj)
 		if mrk {
-			fmt.Fprint(w, ui.SSelMark.Render(line))
+			fmt.Fprint(w, marker+status+agent+"  "+ui.SSelMark.Render(rest))
 		} else {
 			// Selected = bright white bold. Cursor signal lives here, not in row tone.
-			fmt.Fprint(w, ui.SBright.Bold(true).Render(line))
+			fmt.Fprint(w, marker+status+agent+"  "+ui.SBright.Bold(true).Render(rest))
 		}
 	} else {
 		// Per-column colors. Unvisited rows stay normal — the left status glyph
@@ -596,7 +807,7 @@ func (d itemDelegate) Render(w io.Writer, m list.Model, index int, item list.Ite
 			taskSty = ui.SDone
 		}
 		fmt.Fprint(w,
-			marker+status+
+			marker+status+agentCell(n.agent, d.c.agent, n.visited)+"  "+
 				locSty.Render(ui.Pad(locStr, d.c.loc))+"  "+
 				taskSty.Render(ui.Pad(taskStr, d.c.task))+"  "+
 				timeSty.Render(ui.Pad(n.timeAgo, d.c.timeW))+"  "+
@@ -608,6 +819,11 @@ func (d itemDelegate) Render(w io.Writer, m list.Model, index int, item list.Ite
 // ── Model ─────────────────────────────────────────────────────────────────────
 
 type previewMsg string
+type refreshMsg struct{}
+
+func refreshAfter(delay time.Duration) tea.Cmd {
+	return tea.Tick(delay, func(time.Time) tea.Msg { return refreshMsg{} })
+}
 
 func fetchPreview(target string) tea.Cmd {
 	return func() tea.Msg {
@@ -723,13 +939,18 @@ func renderTabStrip(active int, tabs [tabCount][]Notification) string {
 }
 
 func (m model) Init() tea.Cmd {
+	cmds := []tea.Cmd{refreshAfter(2 * time.Second)}
 	if item, ok := m.list.SelectedItem().(Notification); ok {
-		return fetchPreview(item.target)
+		cmds = append(cmds, fetchPreview(item.target))
 	}
-	return nil
+	return tea.Batch(cmds...)
 }
 
 func (m model) reload() model {
+	selectedTarget := ""
+	if item, ok := m.list.SelectedItem().(Notification); ok {
+		selectedTarget = item.target
+	}
 	m.tabs = loadAll()
 	if len(m.tabs[m.tabIdx]) == 0 && m.tabIdx != tabUnvisited {
 		// Avoid landing on an empty tab after a dismiss.
@@ -737,6 +958,12 @@ func (m model) reload() model {
 	}
 	m.list.SetItems(itemsFor(m.tabs[m.tabIdx]))
 	m.list.SetDelegate(itemDelegate{c: m.c, marked: m.marked})
+	for i, n := range m.tabs[m.tabIdx] {
+		if n.target == selectedTarget {
+			m.list.Select(i)
+			break
+		}
+	}
 	return m
 }
 
@@ -759,6 +986,14 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case previewMsg:
 		m.preview = string(msg)
 		return m, nil
+
+	case refreshMsg:
+		m = m.reload()
+		cmds := []tea.Cmd{refreshAfter(2 * time.Second)}
+		if item, ok := m.list.SelectedItem().(Notification); ok {
+			cmds = append(cmds, fetchPreview(item.target))
+		}
+		return m, tea.Batch(cmds...)
 
 	case tea.KeyMsg:
 		if m.list.FilterState() == list.Filtering {
