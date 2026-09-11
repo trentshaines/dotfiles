@@ -205,8 +205,11 @@ func TestNotificationSource(t *testing.T) {
 	if got := notificationAgent(legacy, ""); got != "" {
 		t.Fatalf("unknown legacy notification mislabeled %q", got)
 	}
+	if got := notificationAgent(append(legacy, "Claude"), "Codex"); got != "Codex" {
+		t.Fatalf("stale Claude label overrides live Codex: %q", got)
+	}
 	for _, source := range []string{"Claude", "Codex", "OpenCode"} {
-		if got := notificationAgent(append(legacy, source), "Codex"); got != source {
+		if got := notificationAgent(append(legacy, source), ""); got != source {
 			t.Fatalf("recorded source %q became %q", source, got)
 		}
 	}

@@ -2,8 +2,35 @@
 
 TMUX_BIN="/opt/homebrew/bin/tmux"
 QUEUE_FILE="${AGENT_NOTIFICATION_FILE:-/tmp/claude-notifications.queue}"
-AGENT_NAME="${AGENT_NOTIFICATION_AGENT:-${CODEX_THREAD_ID:+Codex}}"
-AGENT_NAME="${AGENT_NAME:-Claude}"
+# Hooks do not consistently receive CODEX_THREAD_ID. Identify the nearest
+# agent ancestor, rather than treating missing environment metadata as Claude.
+detect_agent() {
+    local pid="$PPID" comm parent args executable script rest depth
+    for ((depth=0; depth<32 && pid>1; depth++)); do
+        comm=$(/bin/ps -p "$pid" -o comm= 2>/dev/null) || break
+        case "${comm##*/}" in
+            codex) printf Codex; return ;;
+            claude) printf Claude; return ;;
+            opencode) printf OpenCode; return ;;
+            node|bun)
+                args=$(/bin/ps -p "$pid" -o args= 2>/dev/null)
+                read -r executable script rest <<< "$args"
+                case "${script##*/}" in
+                    codex) printf Codex; return ;;
+                    claude) printf Claude; return ;;
+                    opencode) printf OpenCode; return ;;
+                esac
+                ;;
+        esac
+        parent=$(/bin/ps -p "$pid" -o ppid= 2>/dev/null) || break
+        parent="${parent//[[:space:]]/}"
+        [[ "$parent" =~ ^[0-9]+$ && "$parent" != "$pid" ]] || break
+        pid="$parent"
+    done
+    [[ -n "${CODEX_THREAD_ID:-}" ]] && printf Codex
+}
+AGENT_NAME="${AGENT_NOTIFICATION_AGENT:-$(detect_agent)}"
+AGENT_NAME="${AGENT_NAME:-Unknown}"
 NOTIFICATION_TITLE="${AGENT_NOTIFICATION_TITLE:-$AGENT_NAME}"
 
 # $TMUX_PANE is the pane ID where this hook was triggered

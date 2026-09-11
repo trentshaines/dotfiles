@@ -147,8 +147,12 @@ func sweepStale() {
 	})
 }
 
-// Old queue rows have no source field; infer those from the live pane only.
+// The live pane is authoritative for its label. Older hooks could explicitly
+// mislabel Codex as Claude when CODEX_THREAD_ID was absent.
 func notificationAgent(parts []string, live string) string {
+	if live != "" {
+		return live
+	}
 	if len(parts) > 8 {
 		switch parts[8] {
 		case "Claude", "Codex", "OpenCode":
