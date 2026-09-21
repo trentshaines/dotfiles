@@ -148,6 +148,18 @@
         dest: "{{ ansible_facts['env']['HOME'] }}/.tmux/plugins/tpm"
         update: no
 
+    - name: Install tmux restore plugins for first boot
+      git:
+        repo: "https://github.com/{{ item }}.git"
+        dest: "{{ ansible_facts['env']['HOME'] }}/.tmux/plugins/{{ item | basename }}"
+        update: no
+      loop:
+        - tmux-plugins/tmux-resurrect
+        - tmux-plugins/tmux-continuum
+        - timvw/tmux-assistant-resurrect
+        - tmux-plugins/tmux-yank
+        - niksingh710/minimal-tmux-status
+
     - name: Install Claude Code via native installer
       shell: |
         curl -fsSL https://raw.githubusercontent.com/anthropics/claude-code/main/install.sh | sh
