@@ -10,12 +10,17 @@ Resume commands contain one explicit session UUID and no replayed prompt.
 Automatic resumes suppress the Codex update prompt for that invocation.
 Other assistants use the existing tmux-assistant-resurrect adapter.
 
-Each resurrect layout has `.assistants.json` and `.names.json` sidecars.
+Before tmux-resurrect publishes its latest layout, the post-save-layout hook
+embeds exact Codex resume IDs directly into that layout. Even if the later
+sidecar save fails, fresh conversations still have a recoverable identity.
+Each resurrect layout also has `.assistants.json` and `.names.json` sidecars.
 `assistant-history/` retains immutable metadata saves for recovery. Runtime
 conversations and mappings remain local, outside the dotfiles repository.
-A failed restore leaves `assistant-restore-pending.json` and blocks metadata
-replacement until the restore succeeds. Inspect the affected panes and retry.
-Never delete the pending file just to silence a failed restore.
+A failed restore leaves `assistant-restore-pending.json` for diagnosis and retry.
+It does not block saves of other live sessions. Pending IDs are retained only
+for the same server and pane, and only if Codex actually persisted the thread.
+Unresolved processes are logged individually; other panes still get saved.
+Empty TUIs with no persisted conversation are not resumable and are excluded.
 
 Inspect live, exact Codex assignments:
 

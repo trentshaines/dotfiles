@@ -8,6 +8,7 @@ from pathlib import Path
 import re
 import shlex
 import shutil
+import sqlite3
 import subprocess
 import sys
 import tempfile
@@ -114,10 +115,12 @@ def resume_options(words):
             if word not in result:
                 result.append(word)
         elif word in valued and i + 1 < len(words):
-            result.extend(words[i:i + 2])
+            if not (word in ('-c', '--config') and words[i + 1].startswith('check_for_update_on_startup=')):
+                result.extend(words[i:i + 2])
             i += 1
         elif word.split('=', 1)[0] in valued and '=' in word:
-            result.append(word)
+            if not word.startswith('--config=check_for_update_on_startup='):
+                result.append(word)
         elif word in ('resume', 'fork'):
             # Stop at the session positional: everything beyond it may be a prompt.
             # Global options ahead of the subcommand cover the normal launch path.
@@ -164,7 +167,7 @@ def open_sessions(pids):
     return result
 
 
-def collect_codex(current, procs):
+def collect_codex(current, procs, errors=None):
     candidates = {}
     for target, pane in current.items():
         candidates[target] = [(pid, codex_args(procs[pid][1]))
@@ -177,7 +180,11 @@ def collect_codex(current, procs):
             continue
         matches = {exact[pid] for pid, _ in group if pid in exact}
         if len(matches) != 1:
-            raise RuntimeError(f'{target}: cannot establish one exact live Codex session; preserving previous snapshot')
+            message = f'{target}: cannot establish one exact live Codex session'
+            if errors is None:
+                raise RuntimeError(message)
+            errors.append(message)
+            continue
         sid = matches.pop()
         pid, options = next((pid, words) for pid, words in reversed(group) if exact.get(pid) == sid)
         entry = {k: current[target][k] for k in ('pane', 'cwd', 'title')}
@@ -197,12 +204,75 @@ def plugin_save():
                 if e['tool'] != 'codex']
 
 
+def session_exists(sid):
+    """A TUI can own a UUID before Codex persists any resumable conversation."""
+    codex_home = Path(os.environ.get('CODEX_HOME', HOME / '.codex'))
+    for db in sorted(codex_home.glob('state_*.sqlite'), key=lambda p: p.stat().st_mtime, reverse=True):
+        with sqlite3.connect(f'file:{db}?mode=ro', uri=True) as connection:
+            if connection.execute('SELECT 1 FROM threads WHERE id=?', (sid,)).fetchone():
+                return True
+    return False
+
+
+def save_entries(directory, current):
+    errors = []
+    entries = collect_codex(current, processes(), errors)
+    persisted = []
+    for entry in entries:
+        if session_exists(entry['session_id']):
+            persisted.append(entry)
+        else:
+            errors.append(f"{entry['pane']}: session has not been persisted; skipping empty TUI")
+    # Retain failed restores independently. One failure must never stop new saves.
+    pending = directory / 'assistant-restore-pending.json'
+    if pending.exists():
+        state = json.loads(pending.read_text())
+        server = tmux('display-message', '-p', '#{pid}')
+        occupied = {e['pane'] for e in persisted}
+        for entry in state.get('sessions', []):
+            pane = current.get(entry['pane'])
+            if (entry['pane'] not in occupied and pane
+                    and state.get('server_pid') == server
+                    and entry.get('pane_id') == pane['pane_id']
+                    and pane['cwd'] == entry['cwd']
+                    and session_exists(entry['session_id'])):
+                persisted.append(entry)
+    for error in errors:
+        log(directory, error)
+    return persisted
+
+
+def bind_layout(directory, layout):
+    """Write exact IDs INTO the layout before resurrect publishes its last link.
+
+    This survives sidecar failure or interruption of the slower post-save hook.
+    """
+    entries = {e['pane']: e for e in save_entries(directory, panes())}
+    lines = []
+    bound = 0
+    for line in layout.read_text().splitlines():
+        fields = line.split('\t')
+        if fields[0] == 'pane' and len(fields) >= 11:
+            target = f'{fields[1]}:{fields[2]}.{fields[5]}'
+            entry = entries.get(target)
+            if entry and fields[7].lstrip(':') == entry['cwd']:
+                fields[10] = ':' + shlex.join(['codex', *entry['argv'], 'resume', entry['session_id']])
+                bound += 1
+        lines.append('\t'.join(fields))
+    temporary = layout.with_suffix('.binding.tmp')
+    temporary.write_text('\n'.join(lines) + '\n')
+    os.replace(temporary, layout)
+    log(directory, f'embedded {bound} exact Codex IDs in {layout.name}')
+
+
 def save(directory):
-    if (directory / 'assistant-restore-pending.json').exists():
-        raise RuntimeError('restore incomplete; preserving recovery metadata')
     layout = (directory / 'last').resolve(strict=True)
     current = panes()
-    entries = collect_codex(current, processes()) + plugin_save()
+    entries = save_entries(directory, current)
+    try:
+        entries += plugin_save()
+    except Exception as exc:
+        log(directory, f'non-Codex adapter failed; saving Codex sessions anyway: {exc}')
     targets = {e['pane'] for e in entries}
     if len(targets) != len(entries):
         raise RuntimeError('duplicate pane mapping; preserving previous snapshot')
@@ -246,6 +316,12 @@ def load_state(directory):
                                 session_id=match[1], cwd=fields[7].lstrip(':'),
                                 title=fields[6], argv=resume_options(words)))
     return dict(sessions=entries)
+
+
+class RestoreIncomplete(RuntimeError):
+    def __init__(self, entries):
+        self.entries = entries
+        super().__init__('restore incomplete for: ' + ', '.join(e['pane'] for e in entries))
 
 
 def restore(directory, state, dry_run=False):
@@ -303,12 +379,13 @@ def restore(directory, state, dry_run=False):
             subprocess.run(['bash', str(PLUGIN / 'restore-assistant-sessions.sh')],
                            env=dict(os.environ, TMUX_RESURRECT_DIR=temp), check=True)
     if failed:
-        raise RuntimeError('restore incomplete for: ' + ', '.join(failed))
+        raise RestoreIncomplete([e for e in state['sessions'] if e['pane'] in failed])
 
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('action', choices=('save', 'restore', 'inspect'))
+    parser.add_argument('action', choices=('save', 'restore', 'inspect', 'bind-layout'))
+    parser.add_argument('layout', nargs='?', type=Path)
     parser.add_argument('--state', type=Path)
     parser.add_argument('--dry-run', action='store_true')
     args = parser.parse_args()
@@ -316,7 +393,11 @@ def main():
     directory.mkdir(parents=True, exist_ok=True)
     with (directory / '.assistant-state.lock').open('a') as lock:
         fcntl.flock(lock, fcntl.LOCK_EX)
-        if args.action == 'save':
+        if args.action == 'bind-layout':
+            if args.layout is None:
+                raise RuntimeError('bind-layout requires a layout file')
+            bind_layout(directory, args.layout)
+        elif args.action == 'save':
             save(directory)
         elif args.action == 'inspect':
             print(json.dumps(collect_codex(panes(), processes()), indent=2))
@@ -324,8 +405,18 @@ def main():
             state = json.loads(args.state.read_text()) if args.state else load_state(directory)
             pending = directory / 'assistant-restore-pending.json'
             if not args.dry_run:
-                atomic_json(pending, state)
-            restore(directory, state, args.dry_run)
+                current = panes()
+                pending_state = dict(state, server_pid=tmux('display-message', '-p', '#{pid}'))
+                pending_state['sessions'] = [dict(e, pane_id=current.get(e['pane'], {}).get('pane_id')) for e in state['sessions']]
+                atomic_json(pending, pending_state)
+            try:
+                restore(directory, state, args.dry_run)
+            except RestoreIncomplete as exc:
+                if not args.dry_run:
+                    failed_targets = {e['pane'] for e in exc.entries}
+                    pending_state['sessions'] = [e for e in pending_state['sessions'] if e['pane'] in failed_targets]
+                    atomic_json(pending, pending_state)
+                raise
             if not args.dry_run:
                 pending.unlink(missing_ok=True)
             if not args.dry_run and not args.state:
