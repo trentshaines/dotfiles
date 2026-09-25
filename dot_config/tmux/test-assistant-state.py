@@ -7,6 +7,7 @@ import tempfile
 import os
 import shlex
 import shutil
+import subprocess
 import time
 import unittest
 from unittest.mock import patch
@@ -16,6 +17,46 @@ s = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(s)
 A = '11111111-1111-7111-8111-111111111111'
 B = '22222222-2222-7222-8222-222222222222'
+
+
+class LauncherTests(unittest.TestCase):
+    def invoke(self, supports_daemon, in_tmux, args, fish=False):
+        with tempfile.TemporaryDirectory() as temp:
+            binary = Path(temp) / 'codex'
+            binary.write_text('#!/bin/sh\nif [ "$1" = "--help" ]; then\n'
+                              + ('echo --no-daemon\n' if supports_daemon else 'echo usage\n')
+                              + 'exit 0\nfi\nprintf "%s\\n" "$@"\n')
+            binary.chmod(0o755)
+            env = dict(os.environ, PATH=temp + ':' + os.environ['PATH'])
+            env.pop('TMUX_PANE', None)
+            if in_tmux:
+                env['TMUX_PANE'] = '%123'
+            command = ['bash', str(s.LAUNCHER), *args]
+            if fish:
+                function = Path(__file__).parent.parent / 'fish/functions/codex.fish'
+                command = ['fish', '--no-config', '-c',
+                           'source ' + shlex.quote(str(function)) + '; codex $argv', '--', *args]
+            return subprocess.run(command, env=env, check=True, capture_output=True,
+                                  text=True).stdout.splitlines()
+
+    def test_new_codex_in_tmux_owns_its_session(self):
+        args = ['-c', 'model="a model with spaces"', 'resume', A]
+        self.assertEqual(self.invoke(True, True, args), ['--no-daemon', *args])
+
+    def test_older_codex_does_not_receive_unsupported_flag(self):
+        self.assertEqual(self.invoke(False, True, ['resume', A]), ['resume', A])
+
+    def test_outside_tmux_preserves_daemon_default(self):
+        self.assertEqual(self.invoke(True, False, ['resume', A]), ['resume', A])
+
+    def test_explicit_no_daemon_is_not_duplicated(self):
+        args = ['--no-daemon', 'resume', A]
+        self.assertEqual(self.invoke(True, True, args), args)
+
+    @unittest.skipUnless(shutil.which('fish'), 'requires fish')
+    def test_fish_launch_uses_local_session(self):
+        self.assertEqual(self.invoke(True, True, ['resume', A], fish=True),
+                         ['--no-daemon', 'resume', A])
 
 
 class StateTests(unittest.TestCase):
@@ -109,6 +150,19 @@ class StateTests(unittest.TestCase):
             self.assertEqual(state['sessions'][0]['pane'], 'one:1.1')
             self.assertEqual(state['sessions'][0]['argv'], ['--search'])
 
+    def test_layout_discards_raw_codex_without_exact_pane_ownership(self):
+        with tempfile.TemporaryDirectory() as temp:
+            d = Path(temp)
+            layout = d / 'tmux_resurrect_test.txt'
+            layout.write_text('pane\tone\t1\t1\t:*\t1\ttitle\t:/same\t1\tfish\t:codex resume ' + A + '\n'
+                              'pane\tone\t1\t1\t:*\t2\ttitle\t:/same\t0\tnvim\t:nvim file.txt\n')
+            with patch.object(s, 'save_entries', return_value=[]), patch.object(s, 'panes', return_value={}):
+                s.bind_layout(d, layout)
+            (d / 'last').symlink_to(layout.name)
+            self.assertEqual(s.load_state(d)['sessions'], [])
+            self.assertEqual(layout.read_text().splitlines()[0].split('\t')[10], ':')
+            self.assertIn(':nvim file.txt', layout.read_text())
+
     def test_failed_restore_is_retained_for_same_pane_only(self):
         with tempfile.TemporaryDirectory() as temp:
             d = Path(temp)
@@ -126,7 +180,13 @@ class StateTests(unittest.TestCase):
             binary = d / 'codex'
             (d / 'thread-writer-locks').mkdir()
             source = d / 'fake.c'
-            source.write_text('#include <stdio.h>\n#include <unistd.h>\nint main(int argc, char **argv) { char p[4096]; snprintf(p,sizeof(p),"%s/thread-writer-locks/%s.lock",' + json.dumps(temp) + ',argv[argc-1]); FILE *f=fopen(p,"w"); if(!f) return 1; sleep(120); fclose(f); }\n')
+            source.write_text('#include <stdio.h>\n#include <unistd.h>\n#include <string.h>\n'
+                              'int main(int argc, char **argv) { '
+                              'if(argc==2 && !strcmp(argv[1],"--help")) { puts("--no-daemon"); return 0; } '
+                              'if(argc<3 || strcmp(argv[1],"--no-daemon")) return 2; '
+                              'char p[4096]; snprintf(p,sizeof(p),"%s/thread-writer-locks/%s.lock",'
+                              + json.dumps(temp) + ',argv[argc-1]); FILE *f=fopen(p,"w"); '
+                              'if(!f) return 1; sleep(120); fclose(f); }\n')
             s.run('cc', str(source), '-o', str(binary))
             def tmux(*args):
                 return s.run('tmux', '-S', socket, *args)
@@ -146,7 +206,8 @@ class StateTests(unittest.TestCase):
                     original = s.panes()
                     expected = dict(zip(sorted(original), (A, B)))
                     for target, sid in expected.items():
-                        tmux('send-keys', '-t', original[target]['pane_id'], 'codex resume ' + sid, 'Enter')
+                        tmux('send-keys', '-t', original[target]['pane_id'],
+                             'bash ' + shlex.quote(str(s.LAUNCHER)) + ' resume ' + sid, 'Enter')
                     deadline = time.monotonic() + 10
                     while time.monotonic() < deadline:
                         try:

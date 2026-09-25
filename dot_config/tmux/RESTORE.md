@@ -10,9 +10,19 @@ Resume commands contain one explicit session UUID and no replayed prompt.
 Automatic resumes suppress the Codex update prompt for that invocation.
 Other assistants use the existing tmux-assistant-resurrect adapter.
 
+Recent Codex versions default to a shared daemon, whose thread locks cannot be
+assigned to individual panes. The fish `codex` function (also used by `cod`)
+and the restore hook both call `codex-launch.sh`. Inside tmux, this launcher
+adds `--no-daemon` when the selected Codex binary supports it. This keeps thread
+ownership local to each pane. The capability check accommodates different mise
+versions per project; older Codex versions and launches outside tmux are unchanged.
+Use these launch paths inside tmux: `command codex` bypasses the fish function.
+
 Before tmux-resurrect publishes its latest layout, the post-save-layout hook
 embeds exact Codex resume IDs directly into that layout. Even if the later
 sidecar save fails, fresh conversations still have a recoverable identity.
+Raw Codex commands without verified pane ownership are removed: resurrect's
+default `ps` strategy can match a different process with the same PID prefix.
 Each resurrect layout also has `.assistants.json` and `.names.json` sidecars.
 `assistant-history/` retains immutable metadata saves for recovery. Runtime
 conversations and mappings remain local, outside the dotfiles repository.

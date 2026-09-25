@@ -19,6 +19,7 @@ UUID = r'[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}'
 SHELLS = {'fish', 'bash', 'zsh', 'sh', 'dash', 'ksh'}
 PLUGIN = HOME / '.tmux/plugins/tmux-assistant-resurrect/scripts'
 NAMES = Path(__file__).with_name('resurrect-names.sh')
+LAUNCHER = Path(__file__).with_name('codex-launch.sh')
 # Hooks run before interactive shell initialization, including at login.
 os.environ['PATH'] = os.pathsep.join([str(HOME / '.local/bin'), '/opt/homebrew/bin',
                                      '/usr/local/bin', os.environ.get('PATH', ''),
@@ -250,6 +251,7 @@ def bind_layout(directory, layout):
     entries = {e['pane']: e for e in save_entries(directory, panes())}
     lines = []
     bound = 0
+    discarded = 0
     for line in layout.read_text().splitlines():
         fields = line.split('\t')
         if fields[0] == 'pane' and len(fields) >= 11:
@@ -258,11 +260,18 @@ def bind_layout(directory, layout):
             if entry and fields[7].lstrip(':') == entry['cwd']:
                 fields[10] = ':' + shlex.join(['codex', *entry['argv'], 'resume', entry['session_id']])
                 bound += 1
+            elif codex_args(fields[10].lstrip(':')) is not None:
+                # Resurrect's ps strategy matches PID prefixes (2994 also matches
+                # 29941). Never retain a raw Codex command without exact ownership.
+                fields[10] = ':'
+                discarded += 1
         lines.append('\t'.join(fields))
     temporary = layout.with_suffix('.binding.tmp')
     temporary.write_text('\n'.join(lines) + '\n')
     os.replace(temporary, layout)
     log(directory, f'embedded {bound} exact Codex IDs in {layout.name}')
+    if discarded:
+        log(directory, f'discarded {discarded} unverified raw Codex commands from layout')
 
 
 def save(directory):
@@ -350,7 +359,7 @@ def restore(directory, state, dry_run=False):
             log(directory, f'skip missing cwd for {target}: {entry["cwd"]}')
             continue
         options = resume_options(entry.get('argv', shlex.split(entry.get('cli_args', ''))))
-        command = 'cd ' + shlex.quote(entry['cwd']) + ' && command codex ' + shlex.join(options + ['-c', 'check_for_update_on_startup=false', 'resume', sid])
+        command = 'cd ' + shlex.quote(entry['cwd']) + ' && bash ' + shlex.quote(str(LAUNCHER)) + ' ' + shlex.join(options + ['-c', 'check_for_update_on_startup=false', 'resume', sid])
         if dry_run:
             log(directory, f'would restore {target}: {sid}')
             continue
