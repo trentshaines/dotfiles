@@ -32,6 +32,12 @@
           {
             "type": "command",
             "command": "$HOME/.claude/hooks/notify-running-end.sh"
+          },
+          {
+            "type": "command",
+            "command": "$HOME/.codex/hooks/goal-autoresume.sh",
+            "timeout": 5,
+            "statusMessage": "Checking goal autoresume"
           }
         ]
       }

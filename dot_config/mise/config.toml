@@ -2,6 +2,10 @@
 # Managed by chezmoi — ~/.config/mise/config.toml
 # All versions pinned for reproducibility
 
+[settings]
+# Worktrees here are local checkouts of the trusted Theseus repository.
+trusted_config_paths = ["~/git/theseus-worktrees"]
+
 [tools]
 # Languages
 node = "22"

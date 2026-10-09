@@ -37,7 +37,7 @@ option_value() {
 }
 
 collect_windows() {
-	local window_id session index name automatic_rename allow_rename auto_branch auto_claude
+	local window_id session index name automatic_rename allow_rename auto_branch auto_claude manual_name
 	while IFS= read -r window_id; do
 		[ -n "$window_id" ] || continue
 		session=$(tmux display-message -p -t "$window_id" -F '#{session_name}' 2>/dev/null) || continue
@@ -47,6 +47,7 @@ collect_windows() {
 		allow_rename=$(option_value -w "$window_id" allow-rename)
 		auto_branch=$(option_value -w "$window_id" @auto-branch)
 		auto_claude=$(option_value -w "$window_id" @auto-claude)
+		manual_name=$(option_value -w "$window_id" @manual-window-name)
 
 		jq -nc \
 			--arg session "$session" \
@@ -56,9 +57,10 @@ collect_windows() {
 			--arg allowRename "$allow_rename" \
 			--arg autoBranch "$auto_branch" \
 			--arg autoClaude "$auto_claude" \
+			--arg manualName "$manual_name" \
 			'{session: $session, index: $index, name: $name,
 			  automaticRename: $automaticRename, allowRename: $allowRename,
-			  autoBranch: $autoBranch, autoClaude: $autoClaude}'
+			  autoBranch: $autoBranch, autoClaude: $autoClaude, manualName: $manualName}'
 	done < <(tmux list-windows -a -F '#{window_id}' 2>/dev/null)
 }
 
@@ -120,12 +122,9 @@ restore_local_option() {
 
 restore_names() {
 	local names_file row session index target value
-	names_file="$(resurrect_data_dir)/names.json"
+	names_file="${1:-$(resurrect_data_dir)/names.json}"
 	[ -r "$names_file" ] || return 0
-
-	# The assistant restore hook runs first. Give the final resumed process a
-	# moment to emit any startup title sequence before restoring the saved name.
-	sleep 2
+	tmux source-file "$HOME/.config/tmux/window-names.conf"
 
 	while IFS= read -r row; do
 		session=$(jq -r '.session' <<<"$row")
@@ -133,6 +132,9 @@ restore_names() {
 		target="${session}:${index}"
 		tmux list-windows -t "$target" >/dev/null 2>&1 || continue
 
+		# Install the explicit lock before any rename or assistant launch.
+		value=$(jq -r '.manualName // ""' <<<"$row")
+		restore_local_option -w "$target" @manual-window-name "$value"
 		tmux rename-window -t "$target" "$(jq -r '.name' <<<"$row")" 2>/dev/null || true
 		value=$(jq -r '.automaticRename' <<<"$row")
 		restore_local_option -w "$target" automatic-rename "$value"
@@ -142,6 +144,10 @@ restore_names() {
 		restore_local_option -w "$target" @auto-branch "$value"
 		value=$(jq -r '.autoClaude' <<<"$row")
 		restore_local_option -w "$target" @auto-claude "$value"
+		if [ -n "$(jq -r '.manualName // ""' <<<"$row")" ]; then
+			restore_local_option -w "$target" automatic-rename off
+			restore_local_option -w "$target" allow-rename off
+		fi
 	done < <(jq -c '.windows[]?' "$names_file")
 
 	while IFS= read -r row; do
@@ -160,6 +166,6 @@ restore_names() {
 
 case "${1:-}" in
 save) save_names ;;
-restore) restore_names ;;
+restore) restore_names "${2:-}" ;;
 *) exit 2 ;;
 esac

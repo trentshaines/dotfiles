@@ -33,7 +33,9 @@ alias ccrd='claude --resume --dangerously-skip-permissions'
 alias ccrdc='claude --resume --dangerously-skip-permissions --chrome'
 
 # Better defaults with modern tools
-alias cat='bat'
+if status is-interactive
+    alias cat='bat'
+end
 alias ls='eza'
 alias ll='eza -l'
 alias la='eza -la'
@@ -74,7 +76,6 @@ alias gcoall='git checkout -- .'
 alias gcb='git checkout -b'
 alias gr='git remote'
 alias gre='git reset'
-alias gsmp='git rev-parse --verify --quiet master >/dev/null && git switch master && git pull || git switch main && git pull'
 alias ghpr='gh pr create -f --draft && gh pr view --web'
 alias ghprw='gh pr view --web'
 
@@ -122,9 +123,21 @@ if status is-interactive
 
     __update_tmux_window_name 2>/dev/null
 
-    # Auto-create home tmux session
+    # Auto-create the home tmux session. Keep the startup lock for the lifetime
+    # of tmuxinator's first attached client so concurrent terminals cannot make
+    # tmux-continuum mistake extra clients for a second tmux server.
     if command -v tmux &>/dev/null; and not set -q TMUX
-        tmux has-session -t home 2>/dev/null; or tmuxinator start home
+        if not tmux has-session -t home 2>/dev/null
+            set -l tmux_home_lock "/tmp/trenthaines-tmux-home.lock"
+            if set -q TMPDIR
+                set tmux_home_lock "$TMPDIR/trenthaines-tmux-home.lock"
+            end
+            if command -v lockf &>/dev/null
+                lockf -k -s -t 0 "$tmux_home_lock" tmuxinator start home
+            else
+                tmuxinator start home
+            end
+        end
     end
 end
 
@@ -134,3 +147,7 @@ source ~/.orbstack/shell/init2.fish 2>/dev/null || :
 
 # The next line updates PATH for the Google Cloud SDK.
 if [ -f '/Users/trenthaines/google-cloud-sdk/path.fish.inc' ]; . '/Users/trenthaines/google-cloud-sdk/path.fish.inc'; end
+
+# bun
+set --export BUN_INSTALL "$HOME/.bun"
+set --export PATH $BUN_INSTALL/bin $PATH

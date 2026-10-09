@@ -161,10 +161,81 @@ ff() {
     aerospace list-windows --all | fzf --bind 'enter:execute(bash -c "aerospace focus --window-id {1}")+abort'
 }
 
+_fuzzy_select_project_dir() {
+    local selected_dir
+    # Don't echo scanning message here, let callers do it.
+    selected_dir=$( ( \
+            # Find top-level project dirs in ~/git
+            find ~/git -maxdepth 1 -mindepth 1 -type d -print0; \
+            # Find service dirs like ~/git/project/services/service_name
+            find ~/git -mindepth 3 -maxdepth 3 -path '*/services/*' -type d -print0; \
+            # Find lib dirs like ~/git/project/libs/lib_name
+            find ~/git -mindepth 3 -maxdepth 3 -path '*/libs/*' -type d -print0 \
+        ) 2>/dev/null | \
+        sort -zu | \
+        fzf --read0 --prompt="Select Project/Service/Lib Dir > ")
+
+    # Output the selected directory path (will be empty if cancelled)
+    echo "$selected_dir"
+    return 0
+}
+
 # IDE Launchers
 alias ri='nohup rider . >/dev/null 2>&1 &'
 # Rider
 export PATH="/Applications/Rider.app/Contents/MacOS:$PATH"
+# Rider Find
+rf() {
+    local selected_dir
+    local err_occurred=0
+
+    # Updated echo message
+    echo "Scanning for directories (~/git/*, ~/git/*/services/*, ~/git/*/libs/*) for Rider..."
+    selected_dir=$(_fuzzy_select_project_dir) # Capture output
+
+    if [[ -n "$selected_dir" ]]; then
+        if [[ -d "$selected_dir" ]]; then
+            echo "Opening '$selected_dir' with Rider..."
+            nohup rider "$selected_dir" >/dev/null 2>&1 &
+        else
+            echo "Error: '$selected_dir' is not a valid directory." >&2
+            err_occurred=1
+        fi
+    else
+        echo "No directory selected for Rider."
+        # No error needed for cancellation
+    fi
+    return "$err_occurred"
+}
+
+# Cursor Find
+cf() {
+    local selected_dir
+    local err_occurred=0
+
+    # Updated echo message
+    echo "Scanning for directories (~/git/*, ~/git/*/services/*, ~/git/*/libs/*) for Cursor..."
+    selected_dir=$(_fuzzy_select_project_dir) # Capture output
+
+    if [[ -n "$selected_dir" ]]; then
+        if [[ -d "$selected_dir" ]]; then
+            echo "Opening '$selected_dir' with Cursor..."
+            # Assuming 'cursor .' works, we need 'cursor path'
+            cursor "$selected_dir"
+            # Check exit status if desired
+            if [[ $? -ne 0 ]]; then
+                echo "Warning: 'cursor' exited with non-zero status." >&2
+            fi
+        else
+            echo "Error: '$selected_dir' is not a valid directory." >&2
+            err_occurred=1
+        fi
+    else
+        echo "No directory selected for Cursor."
+    fi
+    return "$err_occurred"
+}
+
 # Git
 alias gc="git commit -m"
 alias gca="git add . && git commit -a -m"
@@ -181,9 +252,58 @@ alias gcoall='git checkout -- .'
 alias gcb='git checkout -b'
 alias gr='git remote'
 alias gre='git reset'
-alias gsmp='git rev-parse --verify --quiet master >/dev/null && git switch master && git pull || git switch main && git pull'
 alias ghpr='gh pr create -f --draft && gh pr view --web'
 alias ghprw='gh pr view --web'
+
+__gsmp_first_worktree() {
+  git worktree list --porcelain 2>/dev/null | awk '/^worktree / { sub(/^worktree /, ""); print; exit }'
+}
+
+__gsmp_owner_for_branch() {
+  local branch_name="$1"
+  git worktree list --porcelain 2>/dev/null | awk -v branch_name="$branch_name" '
+    /^worktree / { worktree_path = substr($0, 10) }
+    $0 == "branch refs/heads/" branch_name { print worktree_path; exit }
+  '
+}
+
+__gsmp_reclaim_base_branch() {
+  local target_branch="$1"
+  local base_path current_path owner_path
+
+  git rev-parse --is-inside-work-tree >/dev/null 2>&1 || {
+    echo "gsmp: not in a git repository" >&2
+    return 1
+  }
+
+  git worktree prune >/dev/null 2>&1
+
+  base_path="$(__gsmp_first_worktree)"
+  current_path="$(git rev-parse --show-toplevel 2>/dev/null)" || return 1
+  if [[ -n "$base_path" && "$current_path" != "$base_path" ]]; then
+    cd "$base_path" || return 1
+    echo "gsmp: switched to base worktree $base_path"
+    current_path="$base_path"
+  fi
+
+  owner_path="$(__gsmp_owner_for_branch "$target_branch")"
+  if [[ -n "$owner_path" && "$owner_path" != "$current_path" ]]; then
+    echo "gsmp: removing $owner_path because it owns $target_branch"
+    git worktree remove "$owner_path" || return $?
+  fi
+}
+
+gsmp() {
+  local target_branch
+  if git rev-parse --verify --quiet refs/heads/master >/dev/null 2>&1; then
+    target_branch=master
+  else
+    target_branch=main
+  fi
+
+  __gsmp_reclaim_base_branch "$target_branch" || return $?
+  git switch "$target_branch" && git pull
+}
 
 # git log
 glog() {
@@ -259,8 +379,16 @@ export NVM_DIR="$HOME/.nvm"
 nvm use 20 --silent 
 # Auto-create home tmux session
 if command -v tmux &> /dev/null && [ -z "$TMUX" ]; then
-  # Create a "home" session if it doesn't exist
-  tmux has-session -t home 2>/dev/null || tmux new-session -d -s home -c ~
+  # Serialize startup with fish so only one terminal can initialize the server.
+  if ! tmux has-session -t home 2>/dev/null; then
+    tmux_home_lock="${TMPDIR:-/tmp}/trenthaines-tmux-home.lock"
+    if command -v lockf &> /dev/null && command -v tmuxinator &> /dev/null; then
+      lockf -k -s -t 0 "$tmux_home_lock" tmuxinator start --no-attach home
+    else
+      tmux new-session -d -s home -c ~
+    fi
+    unset tmux_home_lock
+  fi
 fi
 
 # Search through ripgrep, then filter with fzf after entering.
@@ -397,3 +525,17 @@ alias capply='chezmoi apply'
 alias fcopy='pbcopy < "$(fzf)"'
 
 export PATH="$HOME/bin:$PATH"
+
+# bun completions
+[ -s "/Users/trenthaines/.bun/_bun" ] && source "/Users/trenthaines/.bun/_bun"
+
+# bun
+export BUN_INSTALL="$HOME/.bun"
+export PATH="$BUN_INSTALL/bin:$PATH"
+
+
+# >>> grok installer >>>
+export PATH="$HOME/.grok/bin:$PATH"
+fpath=(~/.grok/completions/zsh $fpath)
+autoload -Uz compinit && compinit -C
+# <<< grok installer <<<

@@ -8,6 +8,7 @@ import os
 import shlex
 import shutil
 import subprocess
+import sys
 import time
 import unittest
 from unittest.mock import patch
@@ -60,6 +61,24 @@ class LauncherTests(unittest.TestCase):
 
 
 class StateTests(unittest.TestCase):
+    def test_names_restored_before_launch_and_after_partial_failure(self):
+        with tempfile.TemporaryDirectory() as temp:
+            entry = dict(pane='one:1.1')
+            events = []
+            def fail(*args):
+                events.append('launch')
+                raise s.RestoreIncomplete([entry])
+            with patch.object(sys, 'argv', ['assistant-state.py', 'restore']), \
+                    patch.object(s, 'data_dir', return_value=Path(temp)), \
+                    patch.object(s, 'load_state', return_value=dict(sessions=[entry])), \
+                    patch.object(s, 'panes', return_value={}), \
+                    patch.object(s, 'tmux', return_value='123'), \
+                    patch.object(s, 'restore_saved_names', side_effect=lambda *args: events.append('names')), \
+                    patch.object(s, 'restore', side_effect=fail):
+                with self.assertRaises(s.RestoreIncomplete):
+                    s.main()
+            self.assertEqual(events, ['names', 'launch', 'names'])
+
     def test_no_replayed_resume_or_prompt(self):
         self.assertEqual(s.resume_options(['--no-alt-screen', 'resume', A, 'resume', A, 'delete files']), ['--no-alt-screen'])
         self.assertEqual(s.resume_options(['a prompt', '--search']), [])

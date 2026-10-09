@@ -1,0 +1,4 @@
+# Codex skill policy. Mirrors `disable-model-invocation: true` in SKILL.md (Claude).
+# Manual-only: Codex won't auto-fire this skill; explicit `$<name>` invocation still works.
+policy:
+  allow_implicit_invocation: false

@@ -7,6 +7,15 @@
       "key": "0"
     }
   ],
+  "file-explorer:new-file": [],
+  "templater-obsidian:create-Local FleetBook Templates/FleetBook Note.md": [
+    {
+      "modifiers": [
+        "Mod"
+      ],
+      "key": "N"
+    }
+  ],
   "editor:swap-line-down": [
     {
       "modifiers": [

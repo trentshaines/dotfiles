@@ -45,7 +45,10 @@ def data_dir():
 
 def log(directory, message):
     line = time.strftime('[%Y-%m-%dT%H:%M:%SZ] ', time.gmtime()) + message
-    print(line, file=sys.stderr)
+    try:
+        print(line, file=sys.stderr)
+    except OSError:
+        pass  # Hooks may outlive the tmux job that owned stderr; the file log is authoritative.
     with (directory / 'assistant-state.log').open('a') as f:
         f.write(line + '\n')
 
@@ -205,6 +208,61 @@ def plugin_save():
                 if e['tool'] != 'codex']
 
 
+def claude_args(command):
+    try:
+        words = shlex.split(command)
+    except ValueError:
+        return None
+    return words[1:] if words and Path(words[0]).name == 'claude' else None
+
+
+def claude_session(pid):
+    """Claude's own PID registry. The plugin's TMPDIR hook files can be missing
+    (macOS purges them) and its `--resume <word>` fallback captures flags."""
+    try:
+        sid = json.loads((HOME / '.claude/sessions' / f'{pid}.json').read_text()).get('sessionId', '')
+    except (OSError, ValueError):
+        return None
+    if not re.fullmatch(UUID, sid):
+        return None
+    # A TUI that never received a prompt has no transcript and cannot be resumed.
+    return sid if any((HOME / '.claude/projects').glob(f'*/{sid}.jsonl')) else None
+
+
+def claude_options(words):
+    """Launch flags only: no resume ID, picker, or prompt replay."""
+    keep = {'--dangerously-skip-permissions', '--allow-dangerously-skip-permissions',
+            '--verbose', '--chrome', '--no-chrome', '--ide'}
+    return ' '.join(w for w in words if w in keep)
+
+
+def collect_claude(current, procs, plugin_entries, directory):
+    """Resolve every Claude pane exactly, reusing the plugin's model/args when present."""
+    known = {e['pane']: e for e in plugin_entries if e['tool'] == 'claude'}
+    entries = []
+    for target, pane in current.items():
+        pids = [p for p in descendants(pane['pid'], procs)
+                if p in procs and claude_args(procs[p][1]) is not None]
+        if not pids:
+            continue
+        pid = pids[0]
+        sid = claude_session(pid)
+        previous = known.get(target)
+        if sid is None and previous and re.fullmatch(UUID, previous.get('session_id', '')):
+            sid = previous['session_id']
+        if sid is None:
+            log(directory, f'{target}: no resumable Claude session for pid {pid}; skipping')
+            continue
+        words = claude_args(procs[pid][1])
+        model = next((words[i + 1] for i, w in enumerate(words[:-1]) if w == '--model'), '')
+        entry = dict(previous or {}, pane=target, tool='claude', session_id=sid, cwd=pane['cwd'], pid=str(pid))
+        entry['model'] = entry.get('model') or model
+        entry.setdefault('env', None)
+        entry['cli_args'] = claude_options(words)
+        entries.append(entry)
+    return entries
+
+
 def session_exists(sid):
     """A TUI can own a UUID before Codex persists any resumable conversation."""
     codex_home = Path(os.environ.get('CODEX_HOME', HOME / '.codex'))
@@ -279,9 +337,12 @@ def save(directory):
     current = panes()
     entries = save_entries(directory, current)
     try:
-        entries += plugin_save()
+        others = plugin_save()
     except Exception as exc:
+        others = []
         log(directory, f'non-Codex adapter failed; saving Codex sessions anyway: {exc}')
+    entries += collect_claude(current, processes(), others, directory)
+    entries += [e for e in others if e['tool'] != 'claude']
     targets = {e['pane'] for e in entries}
     if len(targets) != len(entries):
         raise RuntimeError('duplicate pane mapping; preserving previous snapshot')
@@ -333,6 +394,13 @@ class RestoreIncomplete(RuntimeError):
         super().__init__('restore incomplete for: ' + ', '.join(e['pane'] for e in entries))
 
 
+def restore_saved_names(directory):
+    layout = (directory / 'last').resolve()
+    saved_names = Path(str(layout) + '.names.json')
+    if saved_names.exists():
+        subprocess.run(['bash', str(NAMES), 'restore', str(saved_names)], check=True)
+
+
 def restore(directory, state, dry_run=False):
     seen = set()
     failed = []
@@ -381,12 +449,29 @@ def restore(directory, state, dry_run=False):
         else:
             failed.append(target)
             log(directory, f'{target}: resume did not acquire expected session {sid}; inspect pane')
-    others = [e for e in state['sessions'] if e['tool'] != 'codex']
+    others = []
+    for entry in state['sessions']:
+        if entry['tool'] == 'codex':
+            continue
+        if entry['tool'] == 'claude' and not re.fullmatch(UUID, entry.get('session_id', '')):
+            # Older snapshots captured flags such as --dangerously-skip-permissions as IDs.
+            log(directory, f"skip invalid Claude session for {entry['pane']}: {entry.get('session_id')}")
+            continue
+        if dry_run:
+            log(directory, f"would restore {entry['tool']} {entry['pane']}: {entry['session_id']}")
+        others.append(entry)
     if others and not dry_run:
         with tempfile.TemporaryDirectory(prefix='tmux-assistants-') as temp:
             atomic_json(Path(temp) / 'assistant-sessions.json', dict(sessions=others))
-            subprocess.run(['bash', str(PLUGIN / 'restore-assistant-sessions.sh')],
-                           env=dict(os.environ, TMUX_RESURRECT_DIR=temp), check=True)
+            try:
+                subprocess.run(['bash', str(PLUGIN / 'restore-assistant-sessions.sh')],
+                               env=dict(os.environ, TMUX_RESURRECT_DIR=temp), check=True,
+                               stdin=subprocess.DEVNULL, capture_output=True)
+            finally:
+                plugin_log = Path(temp) / 'assistant-restore.log'
+                if plugin_log.exists():
+                    with (directory / 'assistant-restore.log').open('a') as f:
+                        f.write(plugin_log.read_text())
     if failed:
         raise RestoreIncomplete([e for e in state['sessions'] if e['pane'] in failed])
 
@@ -419,6 +504,8 @@ def main():
                 pending_state['sessions'] = [dict(e, pane_id=current.get(e['pane'], {}).get('pane_id')) for e in state['sessions']]
                 atomic_json(pending, pending_state)
             try:
+                if not args.dry_run and not args.state:
+                    restore_saved_names(directory)
                 restore(directory, state, args.dry_run)
             except RestoreIncomplete as exc:
                 if not args.dry_run:
@@ -426,14 +513,15 @@ def main():
                     pending_state['sessions'] = [e for e in pending_state['sessions'] if e['pane'] in failed_targets]
                     atomic_json(pending, pending_state)
                 raise
+            finally:
+                # Naming metadata must survive even a partially failed resume.
+                if not args.dry_run and not args.state:
+                    restore_saved_names(directory)
+                # Releases resurrect-save-guard.sh: autosaves may now replace `last`.
+                if not args.dry_run:
+                    tmux('set-option', '-g', '@assistant-restore-done', '1')
             if not args.dry_run:
                 pending.unlink(missing_ok=True)
-            if not args.dry_run and not args.state:
-                layout = (directory / 'last').resolve()
-                saved_names = Path(str(layout) + '.names.json')
-                if saved_names.exists():
-                    shutil.copy2(saved_names, directory / 'names.json')
-                    subprocess.run(['bash', str(NAMES), 'restore'], check=True)
 
 
 if __name__ == '__main__':

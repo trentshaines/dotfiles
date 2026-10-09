@@ -4,6 +4,17 @@ Continuum saves every five minutes and restores when the tmux server starts.
 `assistant-state.sh` supplies a stable PATH before shell/mise initialization.
 The local hooks must stay after TPM in `.tmux.conf`.
 
+Window names entered with prefix + `,` are explicitly pinned in the window
+option `@manual-window-name` (its value is the intended name). Prefix + `Alt+,`
+unpins the window. `window-names.conf` is loaded by interactive fish startup and
+the name restore helper. A rename guard also protects pins from older assistant
+hooks that do not know about the option. Branch naming helpers respect it.
+The snapshot's names sidecar saves this option and restores it before assistant
+launches and again afterward, including when one of the resumes fails.
+To intentionally rename a pinned window from a CLI, set `@manual-window-name`
+to the new name before running `rename-window`, or unset it to unlock the name.
+Run `python3 ~/.config/tmux/test-window-names.py` to test an isolated restart.
+
 Codex identity comes from its process's open thread-writer lock or rollout file.
 It is never inferred from the most recent conversation in a working directory.
 Resume commands contain one explicit session UUID and no replayed prompt.
@@ -31,6 +42,21 @@ It does not block saves of other live sessions. Pending IDs are retained only
 for the same server and pane, and only if Codex actually persisted the thread.
 Unresolved processes are logged individually; other panes still get saved.
 Empty TUIs with no persisted conversation are not resumable and are excluded.
+
+Claude session IDs come from Claude Code's own registry,
+`~/.claude/sessions/<pid>.json`. The plugin's hook files live in `$TMPDIR`,
+which macOS purges, and its fallback can capture `--resume --flag` as an ID.
+A pane with no transcript, such as an open resume picker, is skipped.
+Restore ignores non-UUID Claude IDs found in older snapshots. The plugin's
+per-pane restore log is appended to `assistant-restore.log`.
+
+Continuum autosaves call `resurrect-save-guard.sh`. On a new server, the guard
+blocks autosaves until the assistant restore sets `@assistant-restore-done`,
+or for 30 minutes if no restore runs. In one case an autosave nine seconds into
+a restore replaced `last` with 16 of 79 panes and no assistants. The restore
+hook then read that partial snapshot. Manual saves (prefix + Ctrl-s) bypass the
+guard. `.tmux.conf` sources `window-names.conf`, so reloading the
+configuration no longer replaces the pin-aware branch hooks.
 
 Inspect live, exact Codex assignments:
 

@@ -48,6 +48,9 @@ claude_can_rename() {
     auto_branch=$(win_get @auto-branch)
     auto_claude=$(win_get @auto-claude)
 
+    # Pinned with prefix + , (window-names.conf)
+    [[ -n "$(win_get @manual-window-name)" ]] && return 1
+
     # Branch/worktree takes precedence — don't touch it
     [[ -n "$auto_branch" ]] && return 1
 

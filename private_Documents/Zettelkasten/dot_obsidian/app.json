@@ -1,7 +1,7 @@
 {
   "alwaysUpdateLinks": true,
   "vimMode": true,
-  "newFileLocation": "folder",
+  "newFileLocation": "current",
   "attachmentFolderPath": "Files",
   "mobileToolbarCommands": [
     "editor:insert-wikilink",
@@ -35,7 +35,7 @@
   ],
   "spellcheck": true,
   "promptDelete": false,
-  "newFileFolderPath": "Zettelkasten/Notes",
+  "newFileFolderPath": "Zettelkasten/FleetBook",
   "pdfExportSettings": {
     "includeName": true,
     "pageSize": "Letter",
