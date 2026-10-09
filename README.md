@@ -24,26 +24,52 @@ brew cask installers like Docker and Tailscale can run without a TTY), and once 
 Ansible itself for tasks that require privilege escalation (adding fish to `/etc/shells`,
 setting default shell).
 
+### Automated macOS settings
+
+`run_onchange_macos-defaults.sh` runs after Ansible and sets: Dock (left, autohide,
+size 16, Quick Note hot corner), Finder (list view, sidebar, desktop icons), natural
+scrolling off, two-finger page swipe off, tiling margins off, Cmd-Space → Raycast with
+Spotlight moved to Option-Space, and login items (Raycast, AeroSpace, Granola, Notion).
+`run_onchange_install-pmset-sudoers.sh.tmpl` lets `sudo pmset` run without a password
+(used by the Raycast "Toggle Disable Sleep" script).
+
 ### Manual steps after setup
 
-These apps are installed automatically but require permission grants on first launch:
+macOS does not allow these to be scripted. An agent setting up a new machine should
+walk the user through each one, then run the check under it.
 
-#### [Karabiner-Elements](https://karabiner-elements.pqrs.org/) — keyboard remapping
+#### Permissions (System Settings → Privacy & Security)
 
-Open Karabiner-Elements and approve the **System Extension** and **Input Monitoring** prompts in System Settings. The config is managed via chezmoi at `~/.config/karabiner/`.
+| App | Grant | Check |
+| --- | --- | --- |
+| [Karabiner-Elements](https://karabiner-elements.pqrs.org/) | Open it; approve **System Extension** and **Input Monitoring** | Remapped keys work; config is `~/.config/karabiner/` |
+| [AeroSpace](https://nikitabobko.github.io/AeroSpace/guide) | **Accessibility** | `aerospace list-workspaces --all` |
+| [Espanso](https://espanso.org/) | **Accessibility**, then `espanso service start` | `espanso status` |
+| Raycast | **Accessibility** | Cmd-Space opens Raycast |
 
-#### [AeroSpace](https://nikitabobko.github.io/AeroSpace/guide) — tiling window manager
+The first run of `run_onchange_macos-defaults.sh` asks to let the terminal control
+**System Events** (needed for login items). If it was denied, allow it in Privacy &
+Security → Automation and rerun:
+`chezmoi state delete-bucket --bucket=scriptState && chezmoi apply`.
 
-Open AeroSpace and grant **Accessibility** access. Enable it in System Settings → General → Login Items so it starts on boot.
+#### Raycast
 
-#### [Espanso](https://espanso.org/) — text expander
+1. Sign in to sync extensions and settings (Settings → Account).
+2. Settings → Extensions → Script Commands → **Add Directories** → `~/.config/raycast-scripts`.
+3. Assign the per-script hotkeys by hand (Raycast stores these encrypted, so chezmoi cannot):
+   - Toggle Disable Sleep → _record hotkey here_
+4. If Cmd-Space still opens Spotlight, set Raycast's hotkey to Cmd-Space in Settings → General.
 
-Grant **Accessibility** access when prompted, then register it as a service:
+#### Default browser
 
-```shell
-espanso service start
-```
+System Settings → Desktop & Dock → Default web browser → **Arc**. macOS always asks the
+user to confirm this, so it cannot be scripted silently.
 
-#### [Obsidian](https://obsidian.md/) — note-taking
+#### Obsidian
 
 Enable the CLI in Settings → General → Advanced → Command line interface.
+
+#### Sign-ins
+
+`gh auth login`, `claude` (log in), Codex, Tailscale, Arc, Notion, Granola, Google Drive.
+Credentials are never stored in this repo.

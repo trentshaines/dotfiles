@@ -104,6 +104,9 @@
           - aerospace
           - karabiner-elements
           - espanso
+          - arc
+          - granola
+          - notion
         state: present
       ignore_errors: yes
 
