@@ -1,8 +1,6 @@
 name: config
 root: ~/.config
 
-on_project_start: tmux resize-pane -t config:0.0 -y 70%
-
 windows:
   - main:
       panes:

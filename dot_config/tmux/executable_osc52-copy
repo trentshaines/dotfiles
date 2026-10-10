@@ -1,0 +1,4 @@
+#!/bin/bash
+# Copy stdin to the system clipboard via OSC 52 (works over SSH/mosh).
+# Usage from tmux: copy-pipe '~/.config/tmux/osc52-copy > #{pane_tty}'
+printf '\033]52;c;%s\a' "$(base64 | tr -d '\n')"

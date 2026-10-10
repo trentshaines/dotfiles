@@ -108,7 +108,6 @@
         name:
           - raycast
           - obsidian
-          - alacritty
           - font-hack-nerd-font
           - orbstack
           - tailscale

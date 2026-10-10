@@ -1,0 +1,12 @@
+#!/bin/bash
+# Shim: tmuxinator <= 3.4.1 doesn't know tmux 3.8 and blocks on
+# "Press ENTER to continue." for every start, which hangs non-interactive
+# callers (sesh popup, fish auto-start). Delete once tmuxinator supports 3.8.
+real=/opt/homebrew/bin/tmuxinator
+case "$1" in
+    start|s|stop|st|local|.)
+        cmd=$1; shift
+        exec "$real" "$cmd" --suppress-tmux-version-warning=true "$@" ;;
+    *)
+        exec "$real" "$@" ;;
+esac
