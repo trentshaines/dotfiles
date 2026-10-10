@@ -73,6 +73,7 @@
           - pgcli
 
           # Utilities
+          - autossh
           - chezmoi
           - htop
           - btop
