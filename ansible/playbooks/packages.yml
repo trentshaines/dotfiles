@@ -1,6 +1,13 @@
 - name: Install Homebrew packages on macOS
   hosts: localhost
   become: no
+  vars:
+    brew_taps:
+      - joshmedeski/sesh
+      - felixkratz/formulae
+      - kyu08/tap
+      - nikitabobko/tap
+      - getsentry/tools
   tasks:
     - name: Check if Homebrew is installed
       command: brew --version
@@ -14,13 +21,17 @@
 
     - name: Add brew taps
       homebrew_tap:
-        name:
-          - joshmedeski/sesh
-          - felixkratz/formulae
-          - kyu08/tap
-          - nikitabobko/tap
-          - getsentry/tools
+        name: "{{ brew_taps }}"
         state: present
+
+    # Homebrew 7 refuses to load formulae from non-official taps until trusted.
+    - name: Trust brew taps
+      command:
+        argv: "{{ ['brew', 'trust', '--tap'] + brew_taps }}"
+      environment:
+        PATH: "/opt/homebrew/bin:/usr/local/bin:{{ ansible_facts['env']['PATH'] }}"
+      register: brew_trust
+      changed_when: brew_trust.stdout_lines | select('match', 'Trusted tap:') | list | length > 0
 
     - name: Install brew formulae
       homebrew:
