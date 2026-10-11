@@ -84,9 +84,12 @@ run = 'move-node-to-workspace S'
 if.app-id = 'com.hnc.Discord'
 run = 'move-node-to-workspace S' 
 
-# 2: Notion
+# 2: Notion / Screen Sharing (fvm)
 [[on-window-detected]]
 if.app-id = 'notion.id'
+run = 'move-node-to-workspace 2'
+[[on-window-detected]]
+if.app-id = 'com.apple.ScreenSharing'
 run = 'move-node-to-workspace 2'
 
 # 3: Docker / OrbStack
