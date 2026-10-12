@@ -84,10 +84,7 @@ run = 'move-node-to-workspace S'
 if.app-id = 'com.hnc.Discord'
 run = 'move-node-to-workspace S' 
 
-# 2: Notion / Screen Sharing (fvm)
-[[on-window-detected]]
-if.app-id = 'notion.id'
-run = 'move-node-to-workspace 2'
+# 2: Screen Sharing (fvm)
 [[on-window-detected]]
 if.app-id = 'com.apple.ScreenSharing'
 run = 'move-node-to-workspace 2'
@@ -100,14 +97,23 @@ run = 'move-node-to-workspace 3'
 if.app-id = 'com.docker.docker'
 run = 'move-node-to-workspace 3'
 
+# 4: Notion
+[[on-window-detected]]
+if.app-id = 'notion.id'
+run = 'move-node-to-workspace 4'
+
 # D: Database / Tooling
 [[on-window-detected]]
 if.app-id = 'com.jetbrains.Datagrip'
 run = 'move-node-to-workspace D'
 [[on-window-detected]]
 if.app-id = 'com.azuredatastudio.oss'
-run = 'move-node-to-workspace D' 
+run = 'move-node-to-workspace D'
 
+# M: Music
+[[on-window-detected]]
+if.app-id = 'com.spotify.client'
+run = 'move-node-to-workspace M'
 
 # todo: postman, consider limiting IDE or delineating IDE projects, etc.
 
