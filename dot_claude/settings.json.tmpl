@@ -118,11 +118,12 @@
     "context7@claude-plugins-official": true,
     "ralph-loop@claude-plugins-official": true,
     "pyright-lsp@claude-plugins-official": true,
-    "typescript-lsp@claude-plugins-official": true
+    "typescript-lsp@claude-plugins-official": true,
+    "swift-lsp@claude-plugins-official": true
   },
   "skipDangerousModePermissionPrompt": true,
   "sandbox": {
-{{- if or (eq .chezmoi.hostname "mbvu1314-2") (eq .chezmoi.hostname "Trents-MBP") (eq .chezmoi.hostname "Trents-MacBook-Pro") (eq .chezmoi.hostname "Trents-Mac-mini") }}
+{{- if or (eq .chezmoi.hostname "mbvu1314-2") (eq .chezmoi.hostname "Trents-MBP") (eq .chezmoi.hostname "Trents-MacBook-Pro") (eq .chezmoi.hostname "Trents-Mac-mini") (eq .chezmoi.hostname "Mac") }}
     "enabled": false
 {{- else }}
     "enabled": true,
@@ -163,6 +164,14 @@
 {{- end }}
   },
   "effortLevel": "xhigh",
+  "modelSettings": {
+    "claude-opus-5-5": {
+      "effortLevel": "high"
+    },
+    "claude-opus-4-8": {
+      "effortLevel": "high"
+    }
+  },
   "fastMode": true,
   "theme": "dark",
   "verbose": false,
