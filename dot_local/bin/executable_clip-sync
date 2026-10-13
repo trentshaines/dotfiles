@@ -1,0 +1,20 @@
+#!/bin/bash
+# Generic clipboard mesh: mirror peers' clipboards into this machine's clipboard.
+# Loop-safe: only applies a peer value that differs from the last-synced and current local clip.
+PEERS="$HOME/.config/clipsync/peers"
+last=""
+while true; do
+    if [ -f "$PEERS" ]; then
+        while IFS= read -r peer; do
+            [ -z "$peer" ] && continue
+            case "$peer" in \#*) continue;; esac
+            cp="$HOME/.ssh/cm-clipsync-$(echo "$peer" | tr '@:/' '___')"
+            cur=$(ssh -o BatchMode=yes -o ConnectTimeout=5 -o ControlMaster=auto -o "ControlPath=$cp" -o ControlPersist=30m "$peer" pbpaste 2>/dev/null)
+            if [ $? -eq 0 ] && [ -n "$cur" ] && [ "$cur" != "$last" ] && [ "$cur" != "$(pbpaste)" ]; then
+                printf '%s' "$cur" | pbcopy
+                last="$cur"
+            fi
+        done < "$PEERS"
+    fi
+    sleep 2
+done

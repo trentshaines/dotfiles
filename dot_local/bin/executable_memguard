@@ -1,0 +1,298 @@
+#!/usr/bin/python3
+"""Kill the biggest job before macOS runs out of memory and freezes.
+
+macOS compresses and swaps instead of killing runaways. Near the end it pauses
+apps and shows "out of application memory", but it only kills a process that
+alone holds over half of all compressed memory, so a multi-worker job never
+qualifies. WindowServer then stalls on page faults and the watchdog reboots the
+Mac. On 2026-10-11 that took ~14s from the first critical reading, so this
+guard acts in seconds and on the quantity the kernel actually runs out of.
+
+Every second it reads, straight from the kernel (no fork):
+  occupancy  compressor segments or pages used / limit. Both count data in RAM
+             and in swap; at 98% the kernel declares memory exhausted.
+  headroom   room left for swap: free disk on the VM volume + unused swap files,
+             capped by macOS's 100 x 1GB swapfile limit.
+  eta        seconds until occupancy reaches 98% at the last 10s fill rate.
+  pressure   the kernel's normal/warn/critical level. It ignores swap and
+             flickers, so it only feeds a slow leaky bucket.
+
+Kill (SIGKILL the largest process group over 2GB) when any arm trips:
+  occupancy >= 92% or headroom < 2GB                      immediately
+  occupancy >= 85%, eta < 60s or headroom < 4GB           2 strikes
+  critical pressure                                        10 strikes
+Strikes drain at 0.5 per clean second, so a flickering signal accumulates
+instead of resetting (the 2026-10-11 failure). After a kill it waits for the
+group to exit, then 5s more before a strike-based arm may kill again.
+
+A process group is the kernel's notion of a job: shells, Claude and Codex give
+every command its own, so a worker pool is one group, separate from the agent.
+
+Telemetry: one line per second to ~/.local/state/memguard/samples.tsv (about
+5 days kept), events to ~/.local/state/memguard.log. A gap in the samples means
+the guard itself stalled. Thresholds are first guesses; recalibrate from samples.
+
+Run by launchd (com.trenthaines.memguard). Usage: memguard [--status]
+"""
+import collections, ctypes, os, signal, subprocess, sys, time
+
+GB = 1024 ** 3
+INTERVAL = 1.0
+MIN_KILL = 2 * GB
+SETTLE = 5  # seconds after a kill before a strike-based arm may kill again
+NEVER = {'tmux', 'alacritty', 'Finder', 'Dock', 'SystemUIServer', 'loginwindow'}  # group leaders the session needs
+STATE = os.path.expanduser('~/.local/state/memguard')
+LOG = os.path.expanduser('~/.local/state/memguard.log')
+SAMPLES = os.path.join(STATE, 'samples.tsv')
+SAMPLES_MAX = 25 * 1024 ** 2  # rotate to samples.tsv.1 beyond this (~2.5 days each)
+SWAP_FILE_CAP = 100 * GB      # macOS creates at most 100 swapfiles of 1GB
+
+# Arms: (name, test(signals) -> bool, strikes needed). Checked every second.
+ARMS = [
+    ('occupancy>=92%', lambda s: s['occ'] >= 0.92, 1),
+    ('headroom<2GB', lambda s: s['headroom'] < 2 * GB, 1),
+    ('occupancy>=85%', lambda s: s['occ'] >= 0.85, 2),
+    ('eta<60s', lambda s: s['eta'] < 60 and s['occ'] >= 0.5, 2),
+    ('headroom<4GB', lambda s: s['headroom'] < 4 * GB, 2),
+    ('pressure critical', lambda s: s['pressure'] == 4, 10),
+]
+WARN = [
+    ('occupancy>=60%', lambda s: s['occ'] >= 0.60),
+    ('eta<5min', lambda s: s['eta'] < 300 and s['occ'] >= 0.3),
+    ('headroom<RAM', lambda s: s['headroom'] < s['ram']),
+]
+
+libc = ctypes.CDLL(None, use_errno=True)
+libproc = ctypes.CDLL('/usr/lib/libproc.dylib')
+
+
+def sysctl_int(name, ctype=ctypes.c_uint64):
+    value, size = ctype(0), ctypes.c_size_t(ctypes.sizeof(ctype))
+    if libc.sysctlbyname(name.encode(), ctypes.byref(value), ctypes.byref(size), None, 0) != 0:
+        return 0
+    return value.value if size.value == ctypes.sizeof(ctype) else int.from_bytes(bytes(value)[:size.value], 'little')
+
+
+class SwapUsage(ctypes.Structure):
+    _fields_ = [('total', ctypes.c_uint64), ('avail', ctypes.c_uint64), ('used', ctypes.c_uint64),
+                ('pagesize', ctypes.c_uint32), ('encrypted', ctypes.c_bool)]
+
+
+def swap_usage():
+    usage, size = SwapUsage(), ctypes.c_size_t(ctypes.sizeof(SwapUsage))
+    libc.sysctlbyname(b'vm.swapusage', ctypes.byref(usage), ctypes.byref(size), None, 0)
+    return usage
+
+
+def read_signals(history):
+    """One sample of everything the policy and the recorder need."""
+    seg = sysctl_int('vm.compressor.segment.total') / max(sysctl_int('vm.compressor.segment.limit'), 1)
+    pages = sysctl_int('vm.compressor.pages_compressed') / max(sysctl_int('vm.compressor.pages_compressed_limit'), 1)
+    swap = swap_usage()
+    vm = os.statvfs('/System/Volumes/VM')
+    headroom = min(vm.f_bavail * vm.f_frsize + swap.avail, SWAP_FILE_CAP - swap.used)
+    now = time.time()
+    s = {
+        'time': now, 'occ': max(seg, pages), 'seg': seg, 'pages': pages,
+        'swap_used': swap.used, 'headroom': headroom, 'ram': sysctl_int('hw.memsize'),
+        'swapins': sysctl_int('vm.compressor.swapper.swapins_total'),
+        'pressure': sysctl_int('kern.memorystatus_vm_pressure_level', ctypes.c_int32),
+        'level': sysctl_int('kern.memorystatus_level', ctypes.c_int32),
+    }
+    old = next((h for h in history if now - h['time'] >= 9), None)  # ~10s ago
+    rate = (s['occ'] - old['occ']) / (now - old['time']) if old else 0
+    s['eta'] = (0.98 - s['occ']) / rate if rate > 0 else float('inf')
+    prev = history[-1] if history else None
+    s['swapins_per_s'] = (s['swapins'] - prev['swapins']) / max(now - prev['time'], 0.001) if prev else 0
+    s['lag'] = now - prev['time'] if prev else 0
+    return s
+
+
+# --- processes, straight from libproc ---------------------------------------
+
+class BSDInfo(ctypes.Structure):
+    _fields_ = [('flags', ctypes.c_uint32), ('status', ctypes.c_uint32), ('xstatus', ctypes.c_uint32),
+                ('pid', ctypes.c_uint32), ('ppid', ctypes.c_uint32), ('uid', ctypes.c_uint32),
+                ('gid', ctypes.c_uint32), ('ruid', ctypes.c_uint32), ('rgid', ctypes.c_uint32),
+                ('svuid', ctypes.c_uint32), ('svgid', ctypes.c_uint32), ('rfu', ctypes.c_uint32),
+                ('comm', ctypes.c_char * 16), ('name', ctypes.c_char * 32), ('nfiles', ctypes.c_uint32),
+                ('pgid', ctypes.c_uint32), ('pjobc', ctypes.c_uint32), ('tdev', ctypes.c_uint32),
+                ('tpgid', ctypes.c_uint32), ('nice', ctypes.c_int32), ('start_sec', ctypes.c_uint64),
+                ('start_usec', ctypes.c_uint64)]
+
+
+class RusageInfo(ctypes.Structure):
+    _fields_ = [('uuid', ctypes.c_uint8 * 16)] + [(f, ctypes.c_uint64) for f in (
+        'user_time', 'system_time', 'pkg_idle_wkups', 'interrupt_wkups', 'pageins',
+        'wired_size', 'resident_size', 'phys_footprint', 'start_abstime', 'exit_abstime')]
+
+
+PIDS = (ctypes.c_int32 * 8192)()
+
+
+def footprint(pid):
+    info = RusageInfo()
+    return info.phys_footprint if libproc.proc_pid_rusage(pid, 0, ctypes.byref(info)) == 0 else 0
+
+
+def groups():
+    """[(bytes, pgid, processes, leader name)] for this user's killable process groups, largest first."""
+    count = libproc.proc_listallpids(PIDS, ctypes.sizeof(PIDS))
+    uid, mine = os.getuid(), os.getpgid(0)
+    size, members, leader = collections.Counter(), collections.Counter(), {}
+    info = BSDInfo()
+    for pid in PIDS[:max(count, 0)]:
+        if pid <= 0 or libproc.proc_pidinfo(pid, 3, 0, ctypes.byref(info), ctypes.sizeof(info)) != ctypes.sizeof(info):
+            continue
+        if info.uid != uid or info.pgid in (0, 1, mine):
+            continue
+        size[info.pgid] += footprint(pid)
+        members[info.pgid] += 1
+        if pid == info.pgid:
+            leader[info.pgid] = (info.name or info.comm).decode(errors='replace')
+    return sorted(((size[g], g, members[g], leader.get(g, '?')) for g in size
+                   if leader.get(g) not in NEVER), reverse=True)
+
+
+def command(pid):
+    """argv of pid via KERN_PROCARGS2, without forking."""
+    mib = (ctypes.c_int * 3)(1, 49, pid)
+    size = ctypes.c_size_t(0)
+    if libc.sysctl(mib, 3, None, ctypes.byref(size), None, 0) != 0 or size.value < 4:
+        return ''
+    buf = ctypes.create_string_buffer(size.value)
+    if libc.sysctl(mib, 3, buf, ctypes.byref(size), None, 0) != 0:
+        return ''
+    raw = buf.raw[:size.value]
+    argc = int.from_bytes(raw[:4], 'little')
+    parts = [p for p in raw[4:].split(b'\0') if p][1:argc + 1]  # skip the exec path
+    return b' '.join(parts).decode(errors='replace')[:200]
+
+
+# --- recording --------------------------------------------------------------
+
+def log(msg):
+    with open(LOG, 'a') as f:
+        f.write(time.strftime('%Y-%m-%d %H:%M:%S ') + msg + '\n')
+        f.flush()
+        os.fsync(f.fileno())
+
+
+class Recorder:
+    HEADER = 'time\tocc_seg\tocc_pages\tswap_used_gb\theadroom_gb\tswapins_per_s\tpressure\tlevel\tlag_s\ttop_gb\ttop_pgid\ttop_name\n'
+
+    def __init__(self):
+        os.makedirs(STATE, exist_ok=True)
+        self.file = None
+        self.last_sync = 0
+
+    def write(self, s, top, durable=False):
+        if self.file is None or self.file.tell() > SAMPLES_MAX:
+            if self.file:
+                self.file.close()
+                os.replace(SAMPLES, SAMPLES + '.1')
+            self.file = open(SAMPLES, 'a')
+            if self.file.tell() == 0:
+                self.file.write(self.HEADER)
+        top_gb, top_pgid, top_name = (f'{top[0] / GB:.1f}', top[1], top[3]) if top else ('', '', '')
+        self.file.write(
+            f"{time.strftime('%Y-%m-%dT%H:%M:%S', time.localtime(s['time']))}\t{s['seg']:.3f}\t{s['pages']:.3f}\t"
+            f"{s['swap_used'] / GB:.2f}\t{s['headroom'] / GB:.1f}\t{s['swapins_per_s']:.0f}\t{s['pressure']}\t"
+            f"{s['level']}\t{s['lag']:.1f}\t{top_gb}\t{top_pgid}\t{top_name}\n")
+        self.file.flush()
+        if durable or s['time'] - self.last_sync >= 10:
+            os.fsync(self.file.fileno())
+            self.last_sync = s['time']
+
+
+def notify(text):
+    try:  # never block the guard on a helper process
+        subprocess.Popen(['/usr/bin/osascript', '-e', f'display notification "{text}" with title "memguard"'],
+                         stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    except OSError:
+        pass
+
+
+# --- policy -----------------------------------------------------------------
+
+def elevated(s):
+    return s['pressure'] > 1 or s['occ'] >= 0.3 or s['headroom'] < s['ram'] or s['eta'] < 600
+
+
+def kill(size, pgid, count, name, why, recorder, s):
+    what = command(pgid) or name
+    recorder.write(s, (size, pgid, count, name), durable=True)
+    log(f'KILL {size / GB:.1f}GB group {pgid} ({count} processes) [{why}; occupancy {s["occ"]:.0%}, '
+        f'headroom {s["headroom"] / GB:.1f}GB, pressure {s["pressure"]}]: {what}')
+    try:
+        os.killpg(pgid, signal.SIGKILL)  # no SIGTERM: at the cliff a handler may never get to run
+    except ProcessLookupError:
+        return
+    deadline = time.time() + 10
+    while time.time() < deadline:
+        try:
+            os.killpg(pgid, 0)
+        except ProcessLookupError:
+            break
+        time.sleep(0.2)
+    notify(f'Killed {what[:80]} ({size / GB:.1f}GB) before memory ran out')
+
+
+def main():
+    if '--status' in sys.argv:
+        s = read_signals([])
+        print(f"occupancy: {s['occ']:.0%} (segments {s['seg']:.0%}, pages {s['pages']:.0%}; kernel limit 98%)")
+        print(f"swap: {s['swap_used'] / GB:.1f}GB used, {s['headroom'] / GB:.0f}GB headroom")
+        print(f"pressure: {({1: 'normal', 2: 'warn', 4: 'critical'}).get(s['pressure'], s['pressure'])}, "
+              f"memorystatus_level {s['level']}%")
+        for size, pgid, count, name in groups()[:8]:
+            print(f'{size / GB:6.2f}GB  {count:3} procs  {(command(pgid) or name)[:100]}')
+        return
+    os.makedirs(STATE, exist_ok=True)
+    guard = Guard()
+    log('started')
+    while True:
+        try:
+            guard.tick(read_signals(guard.history))
+        except Exception as e:  # a failed read must never stop the guard
+            log(f'error: {e!r}')
+        time.sleep(INTERVAL)
+
+
+class Guard:
+    def __init__(self):
+        self.recorder = Recorder()
+        self.history = collections.deque(maxlen=15)
+        self.strikes = collections.Counter()
+        self.warned_at = 0
+        self.settle_until = 0  # after a kill, only immediate arms may fire until memory has been released
+
+    def tick(self, s):
+        self.history.append(s)
+        if s['lag'] > 5 * INTERVAL:
+            log(f'STALL: {s["lag"]:.0f}s since the previous sample')
+        top = (groups() or [None])[0] if elevated(s) else None
+        self.recorder.write(s, top)
+        for name, test, _ in ARMS:
+            self.strikes[name] = self.strikes[name] + 1 if test(s) else max(self.strikes[name] - 0.5, 0)
+        tripped = [name for name, _, need in ARMS if self.strikes[name] >= need
+                   and (need == 1 or s['time'] >= self.settle_until)]
+        if tripped:
+            self.strikes.clear()
+            victim = top or (groups() or [None])[0]
+            if victim and victim[0] >= MIN_KILL:
+                kill(*victim, ', '.join(tripped), self.recorder, s)
+                self.history.clear()  # re-measure from scratch before any further kill
+                self.settle_until = s['time'] + SETTLE
+            else:
+                log(f'{", ".join(tripped)} but no job over 2GB; nothing to kill')
+        elif any(test(s) for _, test in WARN) and s['time'] - self.warned_at > 600:
+            self.warned_at = s['time']
+            reasons = ', '.join(name for name, test in WARN if test(s))
+            log(f'WARN {reasons}: occupancy {s["occ"]:.0%}, headroom {s["headroom"] / GB:.0f}GB'
+                + (f'; biggest job {top[0] / GB:.1f}GB {top[3]} (group {top[1]})' if top else ''))
+            notify(f'Memory getting tight ({reasons}).' + (f' Biggest job: {top[3]} {top[0] / GB:.1f}GB' if top else ''))
+
+
+if __name__ == '__main__':
+    main()

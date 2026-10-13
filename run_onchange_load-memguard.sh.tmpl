@@ -1,0 +1,10 @@
+#!/bin/bash
+# Reloads the memguard launch agent when it or its script changes.
+# plist: {{ include "private_Library/LaunchAgents/com.trenthaines.memguard.plist.tmpl" | sha256sum }}
+# script: {{ include "dot_local/bin/executable_memguard" | sha256sum }}
+
+set -e
+PLIST="$HOME/Library/LaunchAgents/com.trenthaines.memguard.plist"
+launchctl bootout "gui/$(id -u)/com.trenthaines.memguard" 2>/dev/null || true
+launchctl bootstrap "gui/$(id -u)" "$PLIST"
+echo "Loaded memguard"
