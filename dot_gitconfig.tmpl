@@ -39,6 +39,12 @@
 [credential "https://github.rbx.com"]
 	helper =
 	helper = !/opt/homebrew/bin/gh auth git-credential
+[credential "https://github.com"]
+	helper =
+	helper = !/opt/homebrew/bin/gh auth git-credential
+[credential "https://gist.github.com"]
+	helper =
+	helper = !/opt/homebrew/bin/gh auth git-credential
 [alias]
 	sync-master = !git fetch origin master && git merge origin/master
 [pull]

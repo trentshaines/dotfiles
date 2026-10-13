@@ -88,6 +88,10 @@
           - xh
           - terminal-notifier
 
+          # Remote access (mosh over Tailscale, autossh port-forward tunnels)
+          - mosh
+          - autossh
+
           # Security
           - gnupg
           - pass
@@ -111,7 +115,7 @@
           - obsidian
           - font-hack-nerd-font
           - orbstack
-          - tailscale
+          - tailscale-app
           - aerospace
           - karabiner-elements
           - espanso
