@@ -52,3 +52,5 @@
 # For a list of all the available options, visit the official docs at: https://espanso.org/docs/
 # Reliable expansion in terminals / over mosh+SSH (atomic paste, not per-key sim)
 backend: clipboard
+
+undo_backspace: false
